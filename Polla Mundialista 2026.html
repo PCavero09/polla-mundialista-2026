@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polla Mundialista FIFA 2026</title>
+    <!-- Google Fonts: Inter y Montserrat -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="app-background"></div>
+    <div class="app-overlay"></div>
+
+    <header class="app-header">
+        <div class="header-logo-container">
+            <!-- Logo oficial del mundial provisto por el usuario -->
+            <img src="Logo Mundial 2026.png" alt="Logo Oficial FIFA 2026" class="fifa-logo-img">
+        </div>
+        <div class="header-title-wrapper">
+            <h1>POLLA MUNDIALISTA</h1>
+            <h2>COPA MUNDIAL DE LA FIFA 2026™</h2>
+        </div>
+        <div class="header-controls">
+            <div class="progress-container">
+                <span class="progress-label">Partidos Completados: <span id="completed-count">0</span> / 104</span>
+                <div class="progress-bar-bg">
+                    <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button id="btn-save" class="btn btn-primary" title="Guardar predicciones localmente">
+                    <span class="btn-icon">💾</span> Guardar
+                </button>
+                <button id="btn-reset" class="btn btn-danger" title="Reiniciar toda la polla">
+                    <span class="btn-icon">🔄</span> Reiniciar
+                </button>
+                <button id="btn-share" class="btn btn-secondary" title="Exportar predicciones en formato archivo">
+                    <span class="btn-icon">📤</span> Exportar
+                </button>
+                <button id="btn-import" class="btn btn-secondary" title="Importar predicciones desde un archivo">
+                    <span class="btn-icon">📥</span> Importar
+                </button>
+                <input type="file" id="import-file" style="display: none;" accept=".json">
+            </div>
+        </div>
+    </header>
+
+    <nav class="app-nav">
+        <button class="nav-tab active" data-target="tab-groups">
+            <span class="tab-icon">🏟️</span> Fase de Grupos
+        </button>
+        <button class="nav-tab" data-target="tab-thirds">
+            <span class="tab-icon">📊</span> Clasificación de Terceros
+        </button>
+        <button class="nav-tab" data-target="tab-knockout">
+            <span class="tab-icon">🏆</span> Fase Eliminatoria
+        </button>
+    </nav>
+
+    <main class="app-content">
+        <!-- Pestaña 1: Fase de Grupos -->
+        <section id="tab-groups" class="tab-pane active">
+            <div class="groups-grid" id="groups-container">
+                <!-- Los grupos se generarán dinámicamente mediante JS -->
+                <div class="loading-spinner">Cargando grupos mundialistas...</div>
+            </div>
+        </section>
+
+        <!-- Pestaña 2: Tabla de Terceros -->
+        <section id="tab-thirds" class="tab-pane">
+            <div class="thirds-card glass-panel">
+                <div class="thirds-header">
+                    <h2>Tabla de Terceros Lugares</h2>
+                    <p>Los <strong>8 mejores terceros</strong> clasifican a la Ronda de 32 (Dieciseisavos de Final). Se
+                        actualiza automáticamente.</p>
+                </div>
+                <div class="thirds-table-wrapper">
+                    <table class="thirds-table">
+                        <thead>
+                            <tr>
+                                <th>Pos</th>
+                                <th>Grupo</th>
+                                <th>Equipo</th>
+                                <th title="Puntos">PTS</th>
+                                <th title="Partidos Jugados">PJ</th>
+                                <th title="Partidos Ganados">PG</th>
+                                <th title="Partidos Empatados">PE</th>
+                                <th title="Partidos Perdidos">PP</th>
+                                <th title="Goles a Favor">GF</th>
+                                <th title="Goles en Contra">GC</th>
+                                <th title="Diferencia de Goles">DG</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="thirds-table-body">
+                            <!-- Filas generadas dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pestaña 3: Fase Eliminatoria (Bracket) -->
+        <section id="tab-knockout" class="tab-pane">
+            <div class="bracket-wrapper">
+                <div class="bracket-container" id="bracket-scroller">
+
+                    <!-- Dieciseisavos (Round of 32) -->
+                    <div class="bracket-column round-32">
+                        <div class="round-title">
+                            <h3>Dieciseisavos de Final</h3>
+                            <span>28 Jun - 03 Jul</span>
+                        </div>
+                        <div class="matches-list" id="r32-matches-list">
+                            <!-- Partidos R32 generados por JS -->
+                        </div>
+                    </div>
+
+                    <!-- Octavos de Final -->
+                    <div class="bracket-column round-16">
+                        <div class="round-title">
+                            <h3>Octavos de Final</h3>
+                            <span>04 Jul - 07 Jul</span>
+                        </div>
+                        <div class="matches-list" id="r16-matches-list">
+                            <!-- Partidos R16 generados por JS -->
+                        </div>
+                    </div>
+
+                    <!-- Cuartos de Final -->
+                    <div class="bracket-column quarterfinals">
+                        <div class="round-title">
+                            <h3>Cuartos de Final</h3>
+                            <span>09 Jul - 11 Jul</span>
+                        </div>
+                        <div class="matches-list" id="qf-matches-list">
+                            <!-- Partidos QF generados por JS -->
+                        </div>
+                    </div>
+
+                    <!-- Semifinales -->
+                    <div class="bracket-column semifinals">
+                        <div class="round-title">
+                            <h3>Semifinales</h3>
+                            <span>14 Jul - 15 Jul</span>
+                        </div>
+                        <div class="matches-list" id="sf-matches-list">
+                            <!-- Partidos SF generados por JS -->
+                        </div>
+                    </div>
+
+                    <!-- Finales (Tercer puesto y Gran Final) -->
+                    <div class="bracket-column finals">
+                        <!-- Tercer Puesto -->
+                        <div class="finals-sub-round">
+                            <div class="round-title">
+                                <h3>3er y 4to Puesto</h3>
+                                <span>18 Jul - Miami</span>
+                            </div>
+                            <div class="matches-list" id="third-place-match-list">
+                                <!-- Partido 3er puesto -->
+                            </div>
+                        </div>
+
+                        <!-- Final -->
+                        <div class="finals-sub-round">
+                            <div class="round-title">
+                                <h3>Gran Final</h3>
+                                <span>19 Jul - Nueva York / Nueva Jersey</span>
+                            </div>
+                            <div class="matches-list" id="final-match-list">
+                                <!-- Partido de la Final -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campeón del Mundo -->
+                    <div class="bracket-column champion-column">
+                        <div class="round-title">
+                            <h3>Campeón del Mundo</h3>
+                            <span>FIFA World Cup 2026™</span>
+                        </div>
+                        <div class="champion-card-wrapper">
+                            <div class="champion-card glass-panel" id="champion-card">
+                                <div class="trophy-glow"></div>
+                                <div class="trophy-image-container">
+                                    <!-- Copa del mundo dorada 3D en SVG -->
+                                    <svg viewBox="0 0 100 150" class="trophy-icon">
+                                        <g>
+                                            <path
+                                                d="M 50 15 C 40 15, 34 25, 34 35 C 34 48, 48 62, 48 85 C 42 88, 32 90, 26 83 C 20 76, 23 55, 16 55 C 8 55, 10 72, 17 88 C 24 104, 36 110, 41 125 C 41 135, 28 140, 28 150 L 72 150 C 72 135, 59 140, 59 125 C 64 110, 76 104, 83 88 C 90 72, 92 55, 84 55 C 77 55, 80 76, 74 83 C 68 90, 58 88, 52 85 C 52 62, 66 48, 66 35 C 66 25, 60 15, 50 15 Z"
+                                                fill="url(#goldGradient)" />
+                                            <!-- Base -->
+                                            <ellipse cx="50" cy="148" rx="20" ry="5" fill="#1b4d3e" />
+                                            <ellipse cx="50" cy="148" rx="20" ry="5" fill="url(#goldGradient)"
+                                                stroke="#1b4d3e" stroke-width="1" />
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="champion-flag" id="champion-flag-box">
+                                    <!-- Bandera del Campeón -->
+                                    <div class="empty-flag">?</div>
+                                </div>
+                                <div class="champion-name" id="champion-name-box">
+                                    ¿Quién será el campeón?
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <p>&copy; 2026 Polla Mundialista FIFA 2026. Creado por Paolo Cavero. Creado para guardar tus predicciones
+            localmente.</p>
+    </footer>
+
+    <!-- Toast de Notificaciones -->
+    <div id="toast" class="toast">Guardado correctamente ✔</div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
