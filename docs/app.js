@@ -1088,6 +1088,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderGroupStage();
     calculateAndRenderAll();
     setupGlobalControls();
+    initMobileBracketNav();
 });
 
 // Guardar y Cargar Estado de LocalStorage
@@ -1909,5 +1910,70 @@ function setupGlobalControls() {
         reader.readAsText(file);
         // Reset del input para poder volver a cargar el mismo archivo
         fileInput.value = "";
+    });
+}
+
+// Navegador de Rondas para Móviles (Bracket Nav Bar)
+function initMobileBracketNav() {
+    const navBar = document.querySelector(".bracket-nav-bar");
+    const btns = document.querySelectorAll(".bracket-nav-btn");
+    const scroller = document.getElementById("bracket-scroller");
+
+    if (!navBar || !scroller) return;
+
+    // Sincronizar clicks de botones para scrollear horizontalmente
+    btns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            btns.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+
+            const roundClass = btn.getAttribute("data-round");
+            const targetCol = scroller.querySelector(`.bracket-column.${roundClass}`);
+            if (targetCol) {
+                // Hacer scroll suave en móviles
+                scroller.scrollTo({
+                    left: targetCol.offsetLeft - 16,
+                    behavior: "smooth"
+                });
+            }
+        });
+    });
+
+    // Detectar scroll horizontal del bracket para activar el botón correspondiente
+    scroller.addEventListener("scroll", () => {
+        const columns = scroller.querySelectorAll(".bracket-column");
+        let activeCol = null;
+        let minDiff = Infinity;
+        const scrollCenter = scroller.scrollLeft + scroller.clientWidth / 2;
+
+        columns.forEach(col => {
+            const colCenter = col.offsetLeft + col.clientWidth / 2;
+            const diff = Math.abs(colCenter - scrollCenter);
+            if (diff < minDiff) {
+                minDiff = diff;
+                activeCol = col;
+            }
+        });
+
+        if (activeCol) {
+            // Encontrar la clase que corresponde al data-round
+            let roundClass = "";
+            if (activeCol.classList.contains("round-32")) roundClass = "round-32";
+            else if (activeCol.classList.contains("round-16")) roundClass = "round-16";
+            else if (activeCol.classList.contains("quarterfinals")) roundClass = "quarterfinals";
+            else if (activeCol.classList.contains("semifinals")) roundClass = "semifinals";
+            else if (activeCol.classList.contains("finals")) roundClass = "finals";
+            else if (activeCol.classList.contains("champion-column")) roundClass = "finals"; // Agrupar con final si se desea
+
+            if (roundClass) {
+                btns.forEach(btn => {
+                    if (btn.getAttribute("data-round") === roundClass) {
+                        btn.classList.add("active");
+                    } else {
+                        btn.classList.remove("active");
+                    }
+                });
+            }
+        }
     });
 }

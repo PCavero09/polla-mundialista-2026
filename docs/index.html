@@ -110,6 +110,15 @@
         <!-- Pestaña 3: Fase Eliminatoria (Bracket) -->
         <section id="tab-knockout" class="tab-pane">
             <div class="bracket-wrapper">
+                <!-- Selector de Rondas para Móviles (Pro/Max Navigation) -->
+                <div class="bracket-nav-bar">
+                    <button class="bracket-nav-btn active" data-round="round-32">1/16</button>
+                    <button class="bracket-nav-btn" data-round="round-16">1/8</button>
+                    <button class="bracket-nav-btn" data-round="quarterfinals">1/4</button>
+                    <button class="bracket-nav-btn" data-round="semifinals">Semis</button>
+                    <button class="bracket-nav-btn" data-round="finals">Final</button>
+                </div>
+
                 <div class="bracket-container" id="bracket-scroller">
 
                     <!-- Dieciseisavos (Round of 32) -->
@@ -191,18 +200,7 @@
                             <div class="champion-card glass-panel" id="champion-card">
                                 <div class="trophy-glow"></div>
                                 <div class="trophy-image-container">
-                                    <!-- Copa del mundo dorada 3D en SVG -->
-                                    <svg viewBox="0 0 100 150" class="trophy-icon">
-                                        <g>
-                                            <path
-                                                d="M 50 15 C 40 15, 34 25, 34 35 C 34 48, 48 62, 48 85 C 42 88, 32 90, 26 83 C 20 76, 23 55, 16 55 C 8 55, 10 72, 17 88 C 24 104, 36 110, 41 125 C 41 135, 28 140, 28 150 L 72 150 C 72 135, 59 140, 59 125 C 64 110, 76 104, 83 88 C 90 72, 92 55, 84 55 C 77 55, 80 76, 74 83 C 68 90, 58 88, 52 85 C 52 62, 66 48, 66 35 C 66 25, 60 15, 50 15 Z"
-                                                fill="url(#goldGradient)" />
-                                            <!-- Base -->
-                                            <ellipse cx="50" cy="148" rx="20" ry="5" fill="#1b4d3e" />
-                                            <ellipse cx="50" cy="148" rx="20" ry="5" fill="url(#goldGradient)"
-                                                stroke="#1b4d3e" stroke-width="1" />
-                                        </g>
-                                    </svg>
+                                    <img src="Trofeo.png" alt="Trofeo de la Copa del Mundo" class="trophy-img">
                                 </div>
                                 <div class="champion-flag" id="champion-flag-box">
                                     <!-- Bandera del Campeón -->
