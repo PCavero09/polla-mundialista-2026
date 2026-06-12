@@ -32,6 +32,7 @@
             <button class="desktop-nav-link" data-view="rules">Reglas</button>
             <button class="desktop-nav-link" data-view="pronosticos">Pronósticos</button>
             <button class="desktop-nav-link" data-view="ranking">Ranking</button>
+            <button class="desktop-nav-link" data-view="admin" id="admin-nav-btn" style="display:none;">⚙️ Admin</button>
         </nav>
 
         <!-- Controles de Usuario -->
@@ -505,11 +506,92 @@
             </div>
         </section>
 
+        <!-- Vista 6: Admin — Resultados Oficiales -->
+        <section id="view-admin" class="view-pane">
+            <div class="admin-panel glass-panel">
+                <!-- Auth Gate -->
+                <div id="admin-auth-gate">
+                    <div class="admin-header">
+                        <div class="admin-icon">⚙️</div>
+                        <h2>Panel de Administración</h2>
+                        <p>Ingresa los resultados oficiales de los partidos para calcular el ranking real.</p>
+                    </div>
+                    <form id="admin-login-form" class="admin-login-form">
+                        <div class="form-group">
+                            <label for="admin-password">Contraseña de Administrador</label>
+                            <input type="password" id="admin-password" placeholder="••••••••" required>
+                        </div>
+                        <div id="admin-login-error" class="admin-error" style="display:none;">Contraseña incorrecta.</div>
+                        <button type="submit" class="btn btn-primary btn-block">Acceder al Panel</button>
+                    </form>
+                </div>
+
+                <!-- Admin Dashboard -->
+                <div id="admin-dashboard" style="display:none;">
+                    <div class="admin-header">
+                        <div class="admin-icon">⚙️</div>
+                        <h2>Resultados Oficiales del Torneo</h2>
+                        <p>Ingresa los marcadores una vez terminen los partidos. El ranking se actualizará automáticamente.</p>
+                    </div>
+
+                    <!-- Predicciones Especiales Oficiales -->
+                    <div class="admin-section">
+                        <h3 class="admin-section-title">🏆 Resultados Especiales del Torneo</h3>
+                        <div class="admin-specials-grid">
+                            <div class="admin-special-box">
+                                <label for="official-champion">Campeón del Mundo</label>
+                                <select id="official-champion" class="special-select">
+                                    <option value="">-- Sin resultado --</option>
+                                </select>
+                            </div>
+                            <div class="admin-special-box">
+                                <label for="official-mvp">Balón de Oro (Mejor Jugador)</label>
+                                <input type="text" id="official-mvp" class="special-input" placeholder="Nombre oficial del jugador">
+                            </div>
+                            <div class="admin-special-box">
+                                <label for="official-scorer">Bota de Oro (Goleador)</label>
+                                <input type="text" id="official-scorer" class="special-input" placeholder="Nombre oficial del goleador">
+                            </div>
+                            <div class="admin-special-box">
+                                <label for="official-gk">Guante de Oro (Mejor Portero)</label>
+                                <input type="text" id="official-gk" class="special-input" placeholder="Nombre oficial del portero">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabs por fase -->
+                    <div class="admin-tabs">
+                        <button class="admin-tab active" data-admin-phase="groups">🏟️ Fase de Grupos (72)</button>
+                        <button class="admin-tab" data-admin-phase="knockout">🏆 Eliminatorias (32)</button>
+                    </div>
+
+                    <div id="admin-phase-groups" class="admin-phase-panel active">
+                        <div id="admin-groups-container" class="admin-matches-grid">
+                            <!-- Partidos de grupos generados por JS -->
+                        </div>
+                    </div>
+
+                    <div id="admin-phase-knockout" class="admin-phase-panel" style="display:none;">
+                        <div id="admin-knockout-container" class="admin-matches-grid">
+                            <!-- Partidos eliminatorios generados por JS -->
+                        </div>
+                    </div>
+
+                    <div class="admin-save-bar">
+                        <button id="btn-save-official" class="btn btn-primary">
+                            💾 Guardar Resultados Oficiales
+                        </button>
+                        <span id="admin-save-status" class="admin-save-status"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
     </main>
 
     <footer class="app-footer">
-        <p>&copy; 2026 Polla Mundialista FIFA 2026. Creado por Paolo Cavero.</p>
-        <p>Guardando predicciones en tiempo real en la nube.</p>
+        <p>© 2026 Polla Mundialista FIFA 2026. Creado por Paolo Cavero.</p>
+        <span id="admin-footer-trigger" style="cursor:default;user-select:none;font-size:0.5rem;opacity:0.01;">·</span>
     </footer>
 
     <!-- Toast de Notificaciones -->

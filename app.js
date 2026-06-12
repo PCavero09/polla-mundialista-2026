@@ -1126,6 +1126,7 @@ document.addEventListener("DOMContentLoaded", () => {
     calculateAndRenderAll();
     setupGlobalControls();
     initMobileBracketNav();
+    initAdminPanel();
 });
 
 // Guardar y Cargar Estado de LocalStorage o Firebase
@@ -2573,7 +2574,22 @@ function saveSpecialState() {
 function renderRankingTable() {
     const tbody = document.getElementById("ranking-table-body");
     if (!tbody) return;
-    
+
+    // Update ranking header badge
+    const rankingHeader = document.querySelector(".ranking-header p");
+    if (rankingHeader) {
+        const existingBadge = rankingHeader.parentElement.querySelector(".ranking-real-badge, .ranking-pending-badge");
+        if (existingBadge) existingBadge.remove();
+        const badge = document.createElement("div");
+        badge.style.marginTop = "0.5rem";
+        if (hasAnyOfficialResult()) {
+            badge.innerHTML = '<span class="ranking-real-badge">✅ Puntajes reales basados en resultados oficiales</span>';
+        } else {
+            badge.innerHTML = '<span class="ranking-pending-badge">⏳ Puntajes reales disponibles cuando se ingresen resultados oficiales</span>';
+        }
+        rankingHeader.insertAdjacentElement("afterend", badge);
+    }
+
     tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Cargando clasificación...</td></tr>";
     
     if (isFirebaseActive) {
@@ -2582,62 +2598,49 @@ function renderRankingTable() {
                 const usersList = [];
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    
-                    let completed = 0;
-                    GROUP_MATCHES.forEach(m => {
-                        const pred = data.groupScores && data.groupScores[m.id];
-                        if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
-                            completed++;
-                        }
-                    });
-                    Object.keys(KNOCKOUT_MATCHES).forEach(matchId => {
-                        const pred = data.knockoutScores && data.knockoutScores[matchId];
-                        if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
-                            if (parseInt(pred.home) === parseInt(pred.away)) {
-                                if (pred.penaltyWinner) completed++;
-                            } else {
-                                completed++;
-                            }
-                        }
-                    });
 
-                    let userExacts = Math.round(completed * 0.45);
-                    let userWinners = Math.round(completed * 0.40);
-                    let userPts = (userExacts * 5) + (userWinners * 2);
-                    
-                    if (data.special) {
-                        if (data.special.champion) userPts += 25;
-                        if (data.special.mvp) userPts += 15;
-                        if (data.special.scorer) userPts += 15;
-                        if (data.special.gk) userPts += 15;
+                    let score;
+                    if (hasAnyOfficialResult()) {
+                        score = calculateRealScore(data);
+                    } else {
+                        // Fallback: count completed predictions but show 0 pts
+                        let completed = 0;
+                        GROUP_MATCHES.forEach(m => {
+                            const pred = data.groupScores && data.groupScores[m.id];
+                            if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) completed++;
+                        });
+                        Object.keys(KNOCKOUT_MATCHES).forEach(matchId => {
+                            const pred = data.knockoutScores && data.knockoutScores[matchId];
+                            if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
+                                if (parseInt(pred.home) === parseInt(pred.away)) { if (pred.penaltyWinner) completed++; } else completed++;
+                            }
+                        });
+                        score = { pts: 0, exacts: 0, winners: 0 };
                     }
 
                     usersList.push({
                         name: data.name,
                         favorite: data.favorite,
-                        exacts: userExacts,
-                        winners: userWinners,
-                        pts: userPts,
+                        exacts: score.exacts,
+                        winners: score.winners,
+                        pts: score.pts,
                         isCurrentUser: (currentUser && doc.id === currentUser.uid)
                     });
                 });
 
                 if (currentUser && !usersList.find(u => u.isCurrentUser)) {
-                    let localCompleted = countCompletedPredictionsLocal();
-                    let userExacts = Math.round(localCompleted * 0.45);
-                    let userWinners = Math.round(localCompleted * 0.40);
-                    let userPts = (userExacts * 5) + (userWinners * 2);
-                    if (state.special.champion) userPts += 25;
-                    if (state.special.mvp) userPts += 15;
-                    if (state.special.scorer) userPts += 15;
-                    if (state.special.gk) userPts += 15;
-
+                    let score;
+                    if (hasAnyOfficialResult()) {
+                        score = calculateRealScore(state);
+                    } else {
+                        score = { pts: 0, exacts: 0, winners: 0 };
+                    }
                     usersList.push({
                         name: `${currentUser.name} (Tú)`,
                         favorite: currentUser.favorite,
-                        exacts: userExacts,
-                        winners: userWinners,
-                        pts: userPts,
+                        exacts: score.exacts,
+                        winners: score.winners,
+                        pts: score.pts,
                         isCurrentUser: true
                     });
                 }
@@ -2702,63 +2705,37 @@ function renderMockRanking(tbody) {
             }
         }
 
-        let completed = 0;
-        GROUP_MATCHES.forEach(m => {
-            const pred = userState.groupScores && userState.groupScores[m.id];
-            if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
-                completed++;
-            }
-        });
-        if (userState.knockoutScores) {
-            Object.keys(KNOCKOUT_MATCHES).forEach(matchId => {
-                const pred = userState.knockoutScores[matchId];
-                if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
-                    if (parseInt(pred.home) === parseInt(pred.away)) {
-                        if (pred.penaltyWinner) completed++;
-                    } else {
-                        completed++;
-                    }
-                }
-            });
-        }
-
-        let userExacts = Math.round(completed * 0.45);
-        let userWinners = Math.round(completed * 0.40);
-        let userPts = (userExacts * 5) + (userWinners * 2);
-        
-        if (userState.special) {
-            if (userState.special.champion) userPts += 25;
-            if (userState.special.mvp) userPts += 15;
-            if (userState.special.scorer) userPts += 15;
-            if (userState.special.gk) userPts += 15;
+        let score;
+        if (hasAnyOfficialResult()) {
+            score = calculateRealScore(userState);
+        } else {
+            score = { pts: 0, exacts: 0, winners: 0 };
         }
 
         usersList.push({
             name: user.name,
             favorite: user.favorite,
-            exacts: userExacts,
-            winners: userWinners,
-            pts: userPts,
+            exacts: score.exacts,
+            winners: score.winners,
+            pts: score.pts,
             isCurrentUser: (currentUser && user.email === currentUser.email)
         });
     });
 
     if (currentUser && !usersList.find(u => u.isCurrentUser)) {
-        let completed = countCompletedPredictionsLocal();
-        let userExacts = Math.round(completed * 0.45);
-        let userWinners = Math.round(completed * 0.40);
-        let userPts = (userExacts * 5) + (userWinners * 2);
-        if (state.special.champion) userPts += 25;
-        if (state.special.mvp) userPts += 15;
-        if (state.special.scorer) userPts += 15;
-        if (state.special.gk) userPts += 15;
+        let score;
+        if (hasAnyOfficialResult()) {
+            score = calculateRealScore(state);
+        } else {
+            score = { pts: 0, exacts: 0, winners: 0 };
+        }
 
         usersList.push({
             name: `${currentUser.name} (Tú)`,
             favorite: currentUser.favorite,
-            exacts: userExacts,
-            winners: userWinners,
-            pts: userPts,
+            exacts: score.exacts,
+            winners: score.winners,
+            pts: score.pts,
             isCurrentUser: true
         });
     }
@@ -2811,5 +2788,458 @@ function displayRankingRows(list, tbody) {
         
         tbody.appendChild(tr);
     });
+}
+
+// ==========================================================================
+// Sistema de Resultados Oficiales + Scoring Real
+// ==========================================================================
+
+const ADMIN_PASSWORD = "polla2026admin";
+const PHASE_MULTIPLIERS = { r32: 2, r16: 3, qf: 4, sf: 5, third: 6, final: 6 };
+
+let officialResults = { group: {}, knockout: {}, special: { champion: "", mvp: "", scorer: "", gk: "" } };
+let adminAuthenticated = false;
+
+function loadOfficialResults() {
+    try {
+        const saved = localStorage.getItem("polla_official_results_2026");
+        if (saved) {
+            officialResults = JSON.parse(saved);
+            if (!officialResults.group) officialResults.group = {};
+            if (!officialResults.knockout) officialResults.knockout = {};
+            if (!officialResults.special) officialResults.special = { champion: "", mvp: "", scorer: "", gk: "" };
+        }
+    } catch (e) {
+        console.error("Error cargando resultados oficiales:", e);
+    }
+}
+
+function saveOfficialResults() {
+    localStorage.setItem("polla_official_results_2026", JSON.stringify(officialResults));
+    // Si Firebase activo, guardar en Firestore también
+    if (isFirebaseActive) {
+        db.collection("official_results").doc("global").set(officialResults)
+            .catch(err => console.error("Error guardando resultados en Firestore:", err));
+    }
+}
+
+function hasAnyOfficialResult() {
+    return Object.keys(officialResults.group).length > 0 ||
+           Object.keys(officialResults.knockout).length > 0 ||
+           officialResults.special.champion !== "";
+}
+
+// Normaliza texto para comparación tolerante (minúsculas, sin tildes)
+function normalizeText(str) {
+    if (!str) return "";
+    return str.toLowerCase().trim()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ");
+}
+
+// Calcula puntos reales de un usuario comparando con resultados oficiales
+function calculateRealScore(predictions) {
+    let pts = 0;
+    let exacts = 0;
+    let winners = 0;
+
+    if (!predictions) return { pts: 0, exacts: 0, winners: 0 };
+
+    // --- FASE DE GRUPOS (x1) ---
+    GROUP_MATCHES.forEach(m => {
+        const official = officialResults.group[m.id];
+        const pred = predictions.groupScores && predictions.groupScores[m.id];
+        if (!official || pred === undefined || pred === null) return;
+        if (official.home === "" || official.away === "" || official.home === undefined) return;
+        if (pred.home === "" || pred.away === "" || pred.home === undefined) return;
+
+        const oh = parseInt(official.home);
+        const oa = parseInt(official.away);
+        const ph = parseInt(pred.home);
+        const pa = parseInt(pred.away);
+        if (isNaN(oh) || isNaN(oa) || isNaN(ph) || isNaN(pa)) return;
+
+        if (ph === oh && pa === oa) {
+            pts += 5;
+            exacts++;
+        } else {
+            const oResult = oh > oa ? "H" : oh < oa ? "A" : "D";
+            const pResult = ph > pa ? "H" : ph < pa ? "A" : "D";
+            if (oResult === pResult) {
+                pts += 2;
+                winners++;
+            }
+        }
+    });
+
+    // --- FASE ELIMINATORIA ---
+    Object.keys(KNOCKOUT_MATCHES).forEach(matchId => {
+        const m = KNOCKOUT_MATCHES[matchId];
+        const mult = PHASE_MULTIPLIERS[m.round] || 1;
+        const official = officialResults.knockout[matchId];
+        const pred = predictions.knockoutScores && predictions.knockoutScores[matchId];
+        if (!official || pred === undefined || pred === null) return;
+        if (official.home === "" || official.away === "" || official.home === undefined) return;
+        if (pred.home === "" || pred.away === "" || pred.home === undefined) return;
+
+        const oh = parseInt(official.home);
+        const oa = parseInt(official.away);
+        const ph = parseInt(pred.home);
+        const pa = parseInt(pred.away);
+        if (isNaN(oh) || isNaN(oa) || isNaN(ph) || isNaN(pa)) return;
+
+        if (ph === oh && pa === oa) {
+            // Check exact + penalty winner if draw
+            if (oh === oa) {
+                if ((official.penaltyWinner || "") === (pred.penaltyWinner || "")) {
+                    pts += 5 * mult;
+                    exacts++;
+                } else {
+                    // Score exact but wrong penalty winner → only winner pts
+                    pts += 2 * mult;
+                    winners++;
+                }
+            } else {
+                pts += 5 * mult;
+                exacts++;
+            }
+        } else {
+            // Check winner only
+            let oWinner, pWinner;
+            if (oh === oa) {
+                oWinner = official.penaltyWinner || "";
+            } else {
+                oWinner = oh > oa ? "home" : "away";
+            }
+            if (ph === pa) {
+                pWinner = pred.penaltyWinner || "";
+            } else {
+                pWinner = ph > pa ? "home" : "away";
+            }
+            if (oWinner !== "" && oWinner === pWinner) {
+                pts += 2 * mult;
+                winners++;
+            }
+        }
+    });
+
+    // --- PREDICCIONES ESPECIALES ---
+    const sp = predictions.special || {};
+    const osp = officialResults.special || {};
+    if (osp.champion && sp.champion && osp.champion === sp.champion) pts += 25;
+    if (osp.mvp && sp.mvp) {
+        const onorm = normalizeText(osp.mvp);
+        const pnorm = normalizeText(sp.mvp);
+        if (onorm && pnorm && (onorm.includes(pnorm) || pnorm.includes(onorm))) pts += 15;
+    }
+    if (osp.scorer && sp.scorer) {
+        const onorm = normalizeText(osp.scorer);
+        const pnorm = normalizeText(sp.scorer);
+        if (onorm && pnorm && (onorm.includes(pnorm) || pnorm.includes(onorm))) pts += 15;
+    }
+    if (osp.gk && sp.gk) {
+        const onorm = normalizeText(osp.gk);
+        const pnorm = normalizeText(sp.gk);
+        if (onorm && pnorm && (onorm.includes(pnorm) || pnorm.includes(onorm))) pts += 15;
+    }
+
+    return { pts, exacts, winners };
+}
+
+// Inicialización del panel de administración
+function initAdminPanel() {
+    loadOfficialResults();
+
+    // Trigger oculto en el footer (5 clics)
+    const trigger = document.getElementById("admin-footer-trigger");
+    if (trigger) {
+        let clickCount = 0;
+        trigger.addEventListener("click", () => {
+            clickCount++;
+            if (clickCount >= 5) {
+                clickCount = 0;
+                navigateToView("admin");
+            }
+        });
+    }
+
+    // Formulario de autenticación admin
+    const adminForm = document.getElementById("admin-login-form");
+    if (adminForm) {
+        // Verificar si ya estaba autenticado en esta sesión
+        if (sessionStorage.getItem("polla_admin_auth") === "true") {
+            adminAuthenticated = true;
+            showAdminDashboard();
+        }
+
+        adminForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const pwd = document.getElementById("admin-password").value;
+            const errEl = document.getElementById("admin-login-error");
+            if (pwd === ADMIN_PASSWORD) {
+                adminAuthenticated = true;
+                sessionStorage.setItem("polla_admin_auth", "true");
+                // Mostrar botón admin en nav
+                const adminBtn = document.getElementById("admin-nav-btn");
+                if (adminBtn) adminBtn.style.display = "";
+                errEl.style.display = "none";
+                showAdminDashboard();
+            } else {
+                errEl.style.display = "block";
+            }
+        });
+    }
+
+    // Tabs del admin
+    document.querySelectorAll(".admin-tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+            document.querySelectorAll(".admin-tab").forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+            const phase = tab.getAttribute("data-admin-phase");
+            document.getElementById("admin-phase-groups").style.display = phase === "groups" ? "" : "none";
+            document.getElementById("admin-phase-knockout").style.display = phase === "knockout" ? "" : "none";
+        });
+    });
+
+    // Guardar resultados oficiales
+    const btnSaveOfficial = document.getElementById("btn-save-official");
+    if (btnSaveOfficial) {
+        btnSaveOfficial.addEventListener("click", () => {
+            collectOfficialResultsFromUI();
+            saveOfficialResults();
+            const statusEl = document.getElementById("admin-save-status");
+            if (statusEl) {
+                statusEl.textContent = "✔ Resultados guardados correctamente";
+                setTimeout(() => { statusEl.textContent = ""; }, 3000);
+            }
+            // Actualizar ranking si está visible
+            renderRankingTable();
+            showToast("✅ Resultados oficiales guardados");
+        });
+    }
+}
+
+function showAdminDashboard() {
+    const gate = document.getElementById("admin-auth-gate");
+    const dash = document.getElementById("admin-dashboard");
+    if (gate) gate.style.display = "none";
+    if (dash) dash.style.display = "";
+
+    // Mostrar botón admin en nav
+    const adminBtn = document.getElementById("admin-nav-btn");
+    if (adminBtn) adminBtn.style.display = "";
+
+    renderAdminGroupMatches();
+    renderAdminKnockoutMatches();
+    populateAdminSpecialSelects();
+    loadOfficialResultsIntoUI();
+}
+
+function populateAdminSpecialSelects() {
+    const sel = document.getElementById("official-champion");
+    if (!sel) return;
+    // Clear existing options except first
+    while (sel.options.length > 1) sel.remove(1);
+    // Use same TEAMS list from main app
+    const sortedTeams = Object.keys(TEAMS).sort((a, b) =>
+        TEAMS[a].name.localeCompare(TEAMS[b].name)
+    );
+    sortedTeams.forEach(code => {
+        const opt = document.createElement("option");
+        opt.value = code;
+        opt.textContent = TEAMS[code].name;
+        sel.appendChild(opt);
+    });
+}
+
+function renderAdminGroupMatches() {
+    const container = document.getElementById("admin-groups-container");
+    if (!container) return;
+    container.innerHTML = "";
+
+    GROUP_MATCHES.forEach(m => {
+        const homeTeam = TEAMS[m.home] || { name: m.home };
+        const awayTeam = TEAMS[m.away] || { name: m.away };
+        const result = officialResults.group[m.id] || {};
+
+        const card = document.createElement("div");
+        card.className = "admin-match-card" + (result.home !== undefined && result.home !== "" ? " has-result" : "");
+        card.dataset.matchId = m.id;
+        card.dataset.phase = "group";
+
+        card.innerHTML = `
+            <div class="admin-match-meta">
+                <span>Partido ${m.id} · Grupo ${m.group}</span>
+                <span>${m.date}</span>
+            </div>
+            <div class="admin-match-teams">
+                <span class="admin-match-team">${homeTeam.name}</span>
+                <span class="admin-vs-badge">vs</span>
+                <span class="admin-match-team">${awayTeam.name}</span>
+            </div>
+            <div class="admin-score-inputs">
+                <input type="number" class="admin-score-input" data-role="home"
+                    min="0" max="30" placeholder="-"
+                    value="${result.home !== undefined && result.home !== "" ? result.home : ""}">
+                <span class="admin-score-dash">—</span>
+                <input type="number" class="admin-score-input" data-role="away"
+                    min="0" max="30" placeholder="-"
+                    value="${result.away !== undefined && result.away !== "" ? result.away : ""}">
+            </div>
+        `;
+
+        // Auto-update has-result class on input
+        card.querySelectorAll(".admin-score-input").forEach(inp => {
+            inp.addEventListener("input", () => {
+                const h = card.querySelector("[data-role='home']").value;
+                const a = card.querySelector("[data-role='away']").value;
+                if (h !== "" && a !== "") {
+                    card.classList.add("has-result");
+                } else {
+                    card.classList.remove("has-result");
+                }
+            });
+        });
+
+        container.appendChild(card);
+    });
+}
+
+function renderAdminKnockoutMatches() {
+    const container = document.getElementById("admin-knockout-container");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const roundLabels = {
+        r32: "Dieciseisavos", r16: "Octavos", qf: "Cuartos",
+        sf: "Semifinal", third: "3er Puesto", final: "Gran Final"
+    };
+
+    Object.keys(KNOCKOUT_MATCHES).forEach(matchId => {
+        const m = KNOCKOUT_MATCHES[matchId];
+        const result = officialResults.knockout[matchId] || {};
+        const homeLabel = m.homePlaceholder || `Equipo ${matchId}A`;
+        const awayLabel = m.awayPlaceholder || `Equipo ${matchId}B`;
+        const roundLabel = roundLabels[m.round] || m.round;
+
+        const card = document.createElement("div");
+        card.className = "admin-match-card" + (result.home !== undefined && result.home !== "" ? " has-result" : "");
+        card.dataset.matchId = matchId;
+        card.dataset.phase = "knockout";
+
+        // Check if a draw is possible (there's already a result)
+        const homeVal = result.home !== undefined && result.home !== "" ? result.home : "";
+        const awayVal = result.away !== undefined && result.away !== "" ? result.away : "";
+        const isDraw = homeVal !== "" && awayVal !== "" && parseInt(homeVal) === parseInt(awayVal);
+        const penWinner = result.penaltyWinner || "";
+
+        card.innerHTML = `
+            <div class="admin-match-meta">
+                <span>Partido ${matchId} · ${roundLabel}</span>
+                <span>${m.date || ""}</span>
+            </div>
+            <div class="admin-match-teams">
+                <span class="admin-match-team" title="${homeLabel}">${homeLabel}</span>
+                <span class="admin-vs-badge">vs</span>
+                <span class="admin-match-team" title="${awayLabel}">${awayLabel}</span>
+            </div>
+            <div class="admin-score-inputs">
+                <input type="number" class="admin-score-input" data-role="home"
+                    min="0" max="30" placeholder="-" value="${homeVal}">
+                <span class="admin-score-dash">—</span>
+                <input type="number" class="admin-score-input" data-role="away"
+                    min="0" max="30" placeholder="-" value="${awayVal}">
+            </div>
+            <div class="admin-penalty-selector" style="display:${isDraw ? "" : "none"}">
+                🎯 Gan. Penales:
+                <select class="admin-penalty-select" data-role="penalty">
+                    <option value="">-</option>
+                    <option value="home" ${penWinner === "home" ? "selected" : ""}>Local</option>
+                    <option value="away" ${penWinner === "away" ? "selected" : ""}>Visitante</option>
+                </select>
+            </div>
+        `;
+
+        // Show/hide penalty selector based on draw
+        const homeInput = card.querySelector("[data-role='home']");
+        const awayInput = card.querySelector("[data-role='away']");
+        const penaltyDiv = card.querySelector(".admin-penalty-selector");
+
+        function updatePenaltyVisibility() {
+            const h = homeInput.value;
+            const a = awayInput.value;
+            if (h !== "" && a !== "" && parseInt(h) === parseInt(a)) {
+                penaltyDiv.style.display = "";
+            } else {
+                penaltyDiv.style.display = "none";
+            }
+            if (h !== "" && a !== "") {
+                card.classList.add("has-result");
+            } else {
+                card.classList.remove("has-result");
+            }
+        }
+
+        homeInput.addEventListener("input", updatePenaltyVisibility);
+        awayInput.addEventListener("input", updatePenaltyVisibility);
+
+        container.appendChild(card);
+    });
+}
+
+function collectOfficialResultsFromUI() {
+    // Group matches
+    document.querySelectorAll("#admin-groups-container .admin-match-card").forEach(card => {
+        const matchId = parseInt(card.dataset.matchId);
+        const homeVal = card.querySelector("[data-role='home']").value;
+        const awayVal = card.querySelector("[data-role='away']").value;
+        if (homeVal !== "" && awayVal !== "") {
+            officialResults.group[matchId] = {
+                home: parseInt(homeVal),
+                away: parseInt(awayVal)
+            };
+        } else {
+            delete officialResults.group[matchId];
+        }
+    });
+
+    // Knockout matches
+    document.querySelectorAll("#admin-knockout-container .admin-match-card").forEach(card => {
+        const matchId = card.dataset.matchId;
+        const homeVal = card.querySelector("[data-role='home']").value;
+        const awayVal = card.querySelector("[data-role='away']").value;
+        if (homeVal !== "" && awayVal !== "") {
+            const entry = { home: parseInt(homeVal), away: parseInt(awayVal) };
+            const penSel = card.querySelector("[data-role='penalty']");
+            if (penSel && penSel.value) {
+                entry.penaltyWinner = penSel.value;
+            }
+            officialResults.knockout[matchId] = entry;
+        } else {
+            delete officialResults.knockout[matchId];
+        }
+    });
+
+    // Special results
+    const officialChamp = document.getElementById("official-champion");
+    const officialMvp = document.getElementById("official-mvp");
+    const officialScorer = document.getElementById("official-scorer");
+    const officialGk = document.getElementById("official-gk");
+    if (officialChamp) officialResults.special.champion = officialChamp.value;
+    if (officialMvp) officialResults.special.mvp = officialMvp.value.trim();
+    if (officialScorer) officialResults.special.scorer = officialScorer.value.trim();
+    if (officialGk) officialResults.special.gk = officialGk.value.trim();
+}
+
+function loadOfficialResultsIntoUI() {
+    // Special fields
+    const offChamp = document.getElementById("official-champion");
+    const offMvp = document.getElementById("official-mvp");
+    const offScorer = document.getElementById("official-scorer");
+    const offGk = document.getElementById("official-gk");
+    if (offChamp && officialResults.special.champion) offChamp.value = officialResults.special.champion;
+    if (offMvp) offMvp.value = officialResults.special.mvp || "";
+    if (offScorer) offScorer.value = officialResults.special.scorer || "";
+    if (offGk) offGk.value = officialResults.special.gk || "";
 }
 

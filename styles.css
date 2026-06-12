@@ -1849,8 +1849,8 @@ body {
 }
 
 .special-select, .special-input {
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #0a1f12;
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: var(--radius-sm);
     padding: 0.5rem 0.75rem;
     color: #ffffff;
@@ -1859,11 +1859,20 @@ body {
     outline: none;
     transition: all 0.2s ease;
     width: 100%;
+    -webkit-appearance: auto;
+    appearance: auto;
+}
+
+.special-select option,
+.form-group select option {
+    background-color: #0a1f12;
+    color: #ffffff;
 }
 
 .special-select:focus, .special-input:focus {
     border-color: var(--accent-mint);
-    background: rgba(0, 230, 118, 0.05);
+    box-shadow: 0 0 0 2px rgba(0, 230, 118, 0.15);
+    background: #0a1f12;
 }
 
 /* ==========================================================================
@@ -2255,3 +2264,291 @@ body {
     }
 }
 
+/* ==========================================================================
+   Vista: Admin Panel — Resultados Oficiales
+   ========================================================================== */
+.admin-panel {
+    padding: 2.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.admin-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.admin-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.admin-header h2 {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 1.8rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.admin-header p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.admin-login-form {
+    max-width: 360px;
+    margin: 0 auto;
+}
+
+.admin-error {
+    color: #ff5252;
+    font-size: 0.82rem;
+    margin-bottom: 0.75rem;
+    text-align: center;
+    padding: 0.5rem;
+    background: rgba(255, 82, 82, 0.1);
+    border-radius: var(--radius-sm);
+}
+
+.admin-section {
+    margin-bottom: 2rem;
+}
+
+.admin-section-title {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent-gold);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-specials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.admin-special-box label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Admin Phase Tabs */
+.admin-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 0;
+}
+
+.admin-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--font-main);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.admin-tab:hover {
+    color: var(--text-primary);
+}
+
+.admin-tab.active {
+    color: var(--accent-mint);
+    border-bottom-color: var(--accent-mint);
+}
+
+/* Admin Matches Grid */
+.admin-matches-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+    max-height: 65vh;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+.admin-match-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.admin-match-card.has-result {
+    border-color: rgba(0, 230, 118, 0.3);
+    background: rgba(0, 230, 118, 0.04);
+}
+
+.admin-match-meta {
+    font-size: 0.67rem;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.admin-match-teams {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.6rem;
+}
+
+.admin-match-team {
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-vs-badge {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.admin-score-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    justify-content: center;
+}
+
+.admin-score-input {
+    width: 48px;
+    text-align: center;
+    background: #0a1f12;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: var(--radius-sm);
+    padding: 0.35rem;
+    color: #ffffff;
+    font-family: var(--font-main);
+    font-size: 1rem;
+    font-weight: 700;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.admin-score-input:focus {
+    border-color: var(--accent-mint);
+}
+
+.admin-score-dash {
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.admin-penalty-selector {
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    color: var(--accent-gold);
+    justify-content: center;
+}
+
+.admin-penalty-select {
+    background: #0a1f12;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.5rem;
+    color: var(--accent-gold);
+    font-size: 0.72rem;
+    outline: none;
+}
+
+/* Save Bar */
+.admin-save-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-save-status {
+    font-size: 0.82rem;
+    color: var(--accent-mint);
+}
+
+/* Scrollbar in admin grid */
+.admin-matches-grid::-webkit-scrollbar {
+    width: 4px;
+}
+.admin-matches-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+.admin-matches-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+
+/* Ranking: real scores badge */
+.ranking-real-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(0, 230, 118, 0.12);
+    border: 1px solid rgba(0, 230, 118, 0.25);
+    border-radius: 20px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.75rem;
+    color: var(--accent-mint);
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+
+.ranking-pending-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.2);
+    border-radius: 20px;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.75rem;
+    color: #ffc107;
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .admin-panel {
+        padding: 1.5rem 1rem;
+    }
+
+    .admin-matches-grid {
+        grid-template-columns: 1fr;
+        max-height: 60vh;
+    }
+
+    .admin-specials-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-tabs {
+        flex-wrap: wrap;
+    }
+}
