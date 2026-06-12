@@ -2307,7 +2307,6 @@ function initAuthSystem() {
             e.preventDefault();
             const name = document.getElementById("reg-name").value;
             const email = document.getElementById("reg-email").value;
-            const dni = document.getElementById("reg-dni").value;
             const phone = document.getElementById("reg-phone").value;
             const favorite = document.getElementById("reg-favorite").value;
             const pass = document.getElementById("reg-password").value;
@@ -2325,7 +2324,6 @@ function initAuthSystem() {
                             uid: fbUser.uid,
                             name: name,
                             email: email,
-                            dni: dni,
                             phone: phone,
                             favorite: favorite
                         };
@@ -2348,7 +2346,7 @@ function initAuthSystem() {
                     return;
                 }
                 
-                const newUser = { name, email, dni, phone, favorite, password: pass };
+                const newUser = { name, email, phone, favorite, password: pass };
                 users.push(newUser);
                 localStorage.setItem("polla_registered_users", JSON.stringify(users));
                 
