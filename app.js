@@ -1116,6 +1116,7 @@ let state = {
 
 // 5. Inicialización de la Aplicación
 document.addEventListener("DOMContentLoaded", () => {
+    computeAllKickoffs();
     loadState();
     initSPARouting();
     initCountdown();
@@ -1127,6 +1128,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupGlobalControls();
     initMobileBracketNav();
     initAdminPanel();
+    initMatchCountdowns();
 });
 
 // Guardar y Cargar Estado de LocalStorage o Firebase
@@ -1266,112 +1268,356 @@ function showToast(message) {
 }
 
 // 7. Renderizar la Fase de Grupos
+// ==========================================================================
+// Kickoff Parsing & Match Countdown System
+// ==========================================================================
+
+const STADIUM_TZ = {
+    'Los Ángeles': -7, 'San Francisco': -7, 'Seattle': -7, 'Vancouver': -7,
+    'Dallas': -5, 'Houston': -5, 'Kansas City': -5, 'Ciudad de México': -5,
+    'Monterrey': -5, 'Guadalajara': -5,
+    'Atlanta': -4, 'Miami': -4, 'Philadelphia': -4, 'Boston': -4,
+    'Nueva Jersey': -4, 'Toronto': -4
+};
+
+const SPANISH_MONTHS_IDX = { 'Ene': 0, 'Feb': 1, 'Mar': 2, 'Abr': 3, 'May': 4, 'Jun': 5, 'Jul': 6, 'Ago': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dic': 11 };
+const SPANISH_MONTHS_LONG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function parseKickoff(match) {
+    if (!match || !match.date || !match.time) return null;
+    let day, month;
+    const parts = match.date.trim().split(/\s+/);
+    for (const p of parts) {
+        if (/^\d+$/.test(p)) day = parseInt(p);
+        if (SPANISH_MONTHS_IDX[p] !== undefined) month = SPANISH_MONTHS_IDX[p];
+    }
+    if (day === undefined || month === undefined) return null;
+    const tm = match.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!tm) return null;
+    let h = parseInt(tm[1]); const min = parseInt(tm[2]); const ap = tm[3].toUpperCase();
+    if (ap === 'PM' && h !== 12) h += 12;
+    if (ap === 'AM' && h === 12) h = 0;
+    const tz = STADIUM_TZ[match.stadium] || -5;
+    return new Date(Date.UTC(2026, month, day, h - tz, min, 0));
+}
+
+function computeAllKickoffs() {
+    GROUP_MATCHES.forEach(m => { m.kickoff = parseKickoff(m); });
+    Object.keys(KNOCKOUT_MATCHES).forEach(id => {
+        KNOCKOUT_MATCHES[id].kickoff = parseKickoff(KNOCKOUT_MATCHES[id]);
+    });
+}
+
+function getMatchStatusFromDiff(diff) {
+    if (diff > 3600000) return 'upcoming';      // > 1 hour: normal upcoming
+    if (diff > 0) return 'closing-soon';        // 0 < diff <= 1h: urgent
+    if (diff > -6600000) return 'live';         // 0 to -110min: live
+    return 'finished';                          // past 110min: done
+}
+
+function getMatchStatusFromKickoff(kickoff) {
+    if (!kickoff) return 'no-date';
+    return getMatchStatusFromDiff(kickoff.getTime() - Date.now());
+}
+
+function formatCountdownDiff(diff) {
+    if (diff <= 0) return '00:00:00';
+    const totalSecs = Math.floor(diff / 1000);
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    const pad = n => String(n).padStart(2, '0');
+    if (h >= 24) {
+        const days = Math.floor(h / 24); const rh = h % 24;
+        return `${days}d ${pad(rh)}h ${pad(m)}m`;
+    }
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+function isMatchLocked(kickoff) {
+    const s = getMatchStatusFromKickoff(kickoff);
+    return s === 'live' || s === 'finished';
+}
+
+function buildCountdownBadge(kickoff, matchId) {
+    if (!kickoff) return '';
+    const diff = kickoff.getTime() - Date.now();
+    const status = getMatchStatusFromDiff(diff);
+    if (status === 'finished') {
+        return `<span class="cd-badge cd-badge--closed" data-countdown-id="${matchId}">🔒 Cerrado</span>`;
+    }
+    if (status === 'live') {
+        return `<span class="cd-badge cd-badge--live" data-countdown-id="${matchId}"><span class="live-pulse"></span>En Vivo</span>`;
+    }
+    if (status === 'closing-soon') {
+        return `<span class="cd-badge cd-badge--urgent" data-countdown-id="${matchId}">⏱ Cierra en ${formatCountdownDiff(diff)}</span>`;
+    }
+    return `<span class="cd-badge cd-badge--upcoming" data-countdown-id="${matchId}">⏱ ${formatCountdownDiff(diff)}</span>`;
+}
+
+function formatNiceDate(dateStr) {
+    const parts = dateStr.trim().split(/\s+/);
+    if (parts.length >= 3) {
+        const month = SPANISH_MONTHS_LONG[SPANISH_MONTHS_IDX[parts[2]]] || parts[2];
+        return `${parts[0]}, ${parts[1]} de ${month} 2026`;
+    }
+    return dateStr;
+}
+
+// Global match view mode: 'date' or 'group'
+let groupViewMode = 'date';
+let groupInputListenerActive = false;
+
 function renderGroupStage() {
     const container = document.getElementById("groups-container");
     container.innerHTML = "";
 
-    Object.keys(GROUPS).forEach(groupKey => {
-        const group = GROUPS[groupKey];
-        
-        // Crear Tarjeta del Grupo
-        const card = document.createElement("div");
-        card.className = "group-card glass-panel";
-        card.id = `group-card-${groupKey}`;
-
-        // Título del Grupo
-        const titleDiv = document.createElement("div");
-        titleDiv.className = "group-title";
-        titleDiv.innerHTML = `
-            <span>${group.name}</span>
-            <span class="group-subtitle">${group.sub}</span>
-        `;
-        card.appendChild(titleDiv);
-
-        // Tabla de Posiciones Interna
-        const table = document.createElement("table");
-        table.className = "group-table";
-        table.innerHTML = `
-            <thead>
-                <tr>
-                    <th class="col-team">Equipo</th>
-                    <th title="Puntos">PTS</th>
-                    <th title="Partidos Jugados">PJ</th>
-                    <th title="Ganados">PG</th>
-                    <th title="Empatados">PE</th>
-                    <th title="Perdidos">PP</th>
-                    <th title="Diferencia de Goles">DG</th>
-                </tr>
-            </thead>
-            <tbody id="group-table-body-${groupKey}">
-                <!-- Se poblará en los cálculos -->
-            </tbody>
-        `;
-        card.appendChild(table);
-
-        // Contenedor de Partidos
-        const matchesDiv = document.createElement("div");
-        matchesDiv.className = "group-matches";
-
-        // Obtener partidos de este grupo
-        const matches = GROUP_MATCHES.filter(m => m.group === groupKey);
-        matches.forEach(m => {
-            const matchItem = document.createElement("div");
-            matchItem.className = "match-item";
-            
-            const teamHome = TEAMS[m.home];
-            const teamAway = TEAMS[m.away];
-
-            // Obtener predicciones guardadas si existen
-            const pred = state.groupScores[m.id] || { home: "", away: "" };
-
-            matchItem.innerHTML = `
-                <div class="match-header-row">
-                    <span class="match-date-time">📅 ${m.date} - ${m.time} PE</span>
-                    <span class="match-stadium">🏟️ ${m.stadium}</span>
-                </div>
-                <div class="match-teams-row">
-                    <div class="match-team team-home">
-                        <span>${teamHome.abbrev}</span>
-                        <img class="flag-icon" src="https://flagcdn.com/w40/${teamHome.iso}.png" alt="${teamHome.name}">
-                    </div>
-                    <div class="match-score-inputs">
-                        <input type="number" min="0" class="score-input" data-match-id="${m.id}" data-team="home" value="${pred.home}">
-                        <span class="score-divider">-</span>
-                        <input type="number" min="0" class="score-input" data-match-id="${m.id}" data-team="away" value="${pred.away}">
-                    </div>
-                    <div class="match-team team-away">
-                        <img class="flag-icon" src="https://flagcdn.com/w40/${teamAway.iso}.png" alt="${teamAway.name}">
-                        <span>${teamAway.abbrev}</span>
-                    </div>
-                </div>
-            `;
-            matchesDiv.appendChild(matchItem);
+    // --- View Toggle Bar ---
+    const toggleBar = document.createElement('div');
+    toggleBar.className = 'match-view-toggle';
+    toggleBar.innerHTML = `
+        <button class="view-toggle-btn ${groupViewMode === 'date' ? 'active' : ''}" data-mode="date">
+            <span>📅</span> Por Fecha
+        </button>
+        <button class="view-toggle-btn ${groupViewMode === 'group' ? 'active' : ''}" data-mode="group">
+            <span>🏟️</span> Por Grupo
+        </button>
+    `;
+    container.appendChild(toggleBar);
+    toggleBar.addEventListener('click', e => {
+        const btn = e.target.closest('[data-mode]');
+        if (!btn) return;
+        const mode = btn.getAttribute('data-mode');
+        if (mode === groupViewMode) return;
+        groupViewMode = mode;
+        toggleBar.querySelectorAll('.view-toggle-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-mode') === mode);
         });
-
-        card.appendChild(matchesDiv);
-        container.appendChild(card);
+        const mc = document.getElementById('matches-view-container');
+        if (mc) mc.remove();
+        renderMatchesContent(container);
     });
 
-    // Escuchar cambios en los marcadores de fase de grupos
-    container.addEventListener("input", (e) => {
-        if (e.target.classList.contains("score-input")) {
-            const matchId = parseInt(e.target.getAttribute("data-match-id"));
-            const teamType = e.target.getAttribute("data-team");
-            const val = e.target.value;
+    renderMatchesContent(container);
 
-            if (!state.groupScores[matchId]) {
-                state.groupScores[matchId] = { home: "", away: "" };
+    // Event delegation for group score inputs (attach only once)
+    if (!groupInputListenerActive) {
+        groupInputListenerActive = true;
+        document.getElementById('groups-container').addEventListener("input", (e) => {
+            if (e.target.classList.contains("score-input") && !e.target.disabled) {
+                const matchId = parseInt(e.target.getAttribute("data-match-id"));
+                const teamType = e.target.getAttribute("data-team");
+                const val = e.target.value;
+                if (!state.groupScores[matchId]) state.groupScores[matchId] = { home: "", away: "" };
+                state.groupScores[matchId][teamType] = val !== "" ? parseInt(val) : "";
+                calculateAndRenderAll();
+                localStorage.setItem("polla_mundial_2026_state", JSON.stringify(state));
+                updateProgressBar();
             }
-            
-            state.groupScores[matchId][teamType] = val !== "" ? parseInt(val) : "";
+        });
+    }
+}
 
-            // Guardado automático silencioso y recálculo
-            calculateAndRenderAll();
-            localStorage.setItem("polla_mundial_2026_state", JSON.stringify(state));
-            updateProgressBar();
+function renderMatchesContent(container) {
+    let mc = document.getElementById('matches-view-container');
+    if (mc) mc.remove();
+    mc = document.createElement('div');
+    mc.id = 'matches-view-container';
+    container.appendChild(mc);
+    if (groupViewMode === 'date') {
+        renderMatchesByDate(mc);
+    } else {
+        renderMatchesByGroup(mc);
+    }
+}
+
+function renderMatchesByDate(container) {
+    const sorted = [...GROUP_MATCHES].sort((a, b) => {
+        const aT = a.kickoff ? a.kickoff.getTime() : Infinity;
+        const bT = b.kickoff ? b.kickoff.getTime() : Infinity;
+        return aT - bT;
+    });
+
+    const now = Date.now();
+    const nextMatch = sorted.find(m => m.kickoff && m.kickoff.getTime() > now);
+    let currentDate = null;
+
+    sorted.forEach(m => {
+        if (m.date !== currentDate) {
+            currentDate = m.date;
+            const header = document.createElement('div');
+            header.className = 'date-section-header';
+            const matchCount = sorted.filter(x => x.date === m.date).length;
+            header.innerHTML = `
+                <span class="date-header-label">${formatNiceDate(m.date)}</span>
+                <span class="date-header-count">${matchCount} partido${matchCount !== 1 ? 's' : ''}</span>
+            `;
+            container.appendChild(header);
+        }
+        const isNext = !!(nextMatch && m.id === nextMatch.id);
+        container.appendChild(buildGroupMatchCard(m, isNext));
+    });
+
+    if (sorted.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">No hay partidos disponibles.</p>';
+    }
+}
+
+function renderMatchesByGroup(container) {
+    Object.keys(GROUPS).forEach(groupKey => {
+        const group = GROUPS[groupKey];
+
+        const groupSection = document.createElement('div');
+        groupSection.className = 'group-card glass-panel';
+        groupSection.id = `group-card-${groupKey}`;
+
+        // Group title
+        groupSection.innerHTML = `
+            <div class="group-title">
+                <span>${group.name}</span>
+                <span class="group-subtitle">${group.sub}</span>
+            </div>
+        `;
+
+        // Standings table
+        const table = document.createElement('table');
+        table.className = 'group-table';
+        table.innerHTML = `
+            <thead><tr>
+                <th class="col-team">Equipo</th>
+                <th title="Puntos">PTS</th>
+                <th title="Partidos Jugados">PJ</th>
+                <th title="Ganados">PG</th>
+                <th title="Empatados">PE</th>
+                <th title="Perdidos">PP</th>
+                <th title="Diferencia de Goles">DG</th>
+            </tr></thead>
+            <tbody id="group-table-body-${groupKey}"></tbody>
+        `;
+        groupSection.appendChild(table);
+
+        // Matches
+        const matchesDiv = document.createElement('div');
+        matchesDiv.className = 'group-matches';
+        GROUP_MATCHES.filter(m => m.group === groupKey).forEach(m => {
+            matchesDiv.appendChild(buildGroupMatchCard(m, false));
+        });
+        groupSection.appendChild(matchesDiv);
+        container.appendChild(groupSection);
+    });
+}
+
+function buildGroupMatchCard(m, isNext) {
+    const teamHome = TEAMS[m.home];
+    const teamAway = TEAMS[m.away];
+    const pred = state.groupScores[m.id] || { home: "", away: "" };
+    const locked = isMatchLocked(m.kickoff);
+    const status = getMatchStatusFromKickoff(m.kickoff);
+
+    const matchItem = document.createElement('div');
+    matchItem.className = 'match-item' +
+        (locked ? ' match-item--locked' : '') +
+        (isNext ? ' match-item--next' : '');
+    matchItem.setAttribute('data-match-id', m.id);
+    if (m.kickoff) matchItem.setAttribute('data-kickoff', m.kickoff.getTime());
+    matchItem.setAttribute('data-match-type', 'group');
+
+    const countdownBadge = buildCountdownBadge(m.kickoff, m.id);
+    const groupBadge = `<span class="match-group-badge">Grupo ${m.group} · #${m.id}</span>`;
+
+    matchItem.innerHTML = `
+        <div class="match-header-row">
+            ${groupBadge}
+            ${countdownBadge}
+        </div>
+        <div class="match-teams-row">
+            <div class="match-team team-home">
+                <img class="flag-icon" src="https://flagcdn.com/w40/${teamHome.iso}.png" alt="${teamHome.name}">
+                <span class="team-name-label">${teamHome.name}</span>
+            </div>
+            <div class="match-score-inputs">
+                <input type="number" min="0" max="30" class="score-input" data-match-id="${m.id}" data-team="home" value="${pred.home}"${locked ? ' disabled' : ''}>
+                <span class="score-divider">VS</span>
+                <input type="number" min="0" max="30" class="score-input" data-match-id="${m.id}" data-team="away" value="${pred.away}"${locked ? ' disabled' : ''}>
+            </div>
+            <div class="match-team team-away">
+                <span class="team-name-label">${teamAway.name}</span>
+                <img class="flag-icon" src="https://flagcdn.com/w40/${teamAway.iso}.png" alt="${teamAway.name}">
+            </div>
+        </div>
+        <div class="match-footer-row">
+            <span class="match-time-info">📅 ${m.date} · ${m.time}</span>
+            <span class="match-stadium">🏟️ ${m.stadium}</span>
+        </div>
+    `;
+    return matchItem;
+}
+
+// ==========================================================================
+// Live Countdown Interval
+// ==========================================================================
+
+let countdownInterval = null;
+
+function initMatchCountdowns() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    updateAllCountdowns(); // immediate first run
+    countdownInterval = setInterval(updateAllCountdowns, 1000);
+}
+
+function updateAllCountdowns() {
+    const now = Date.now();
+    document.querySelectorAll('[data-countdown-id]').forEach(badge => {
+        const matchId = badge.getAttribute('data-countdown-id');
+        // Find the match item (could be group or knockout)
+        const matchItem = document.querySelector(
+            `.match-item[data-match-id="${matchId}"], .knockout-match-card[id="ko-match-${matchId}"]`
+        );
+        if (!matchItem) return;
+        const kickoffMs = parseInt(matchItem.getAttribute('data-kickoff'));
+        if (!kickoffMs) return;
+
+        const diff = kickoffMs - now;
+        const status = getMatchStatusFromDiff(diff);
+
+        // Update badge
+        badge.className = 'cd-badge';
+        if (status === 'finished') {
+            badge.className += ' cd-badge--closed';
+            badge.innerHTML = '🔒 Cerrado';
+        } else if (status === 'live') {
+            badge.className += ' cd-badge--live';
+            badge.innerHTML = '<span class="live-pulse"></span>En Vivo';
+        } else if (status === 'closing-soon') {
+            badge.className += ' cd-badge--urgent';
+            badge.textContent = '⏱ Cierra en ' + formatCountdownDiff(diff);
+        } else {
+            badge.className += ' cd-badge--upcoming';
+            badge.textContent = '⏱ ' + formatCountdownDiff(diff);
+        }
+
+        // Lock inputs when match starts
+        if (status === 'live' || status === 'finished') {
+            const inputs = matchItem.querySelectorAll('.score-input:not([disabled])');
+            if (inputs.length > 0) {
+                inputs.forEach(inp => { inp.disabled = true; });
+                matchItem.classList.add('match-item--locked');
+                if (!matchItem.hasAttribute('data-lock-notified')) {
+                    matchItem.setAttribute('data-lock-notified', 'true');
+                    const h = matchItem.querySelector('.team-home .team-name-label, .team-home span:not(.cd-badge)');
+                    const a = matchItem.querySelector('.team-away .team-name-label, .team-away span:not(.cd-badge)');
+                    const hn = h ? h.textContent.trim() : '';
+                    const an = a ? a.textContent.trim() : '';
+                    if (hn && an) showToast(`⏱ Pronósticos cerrados: ${hn} vs ${an}`);
+                }
+            }
+            // Also lock penalty buttons in knockout
+            matchItem.querySelectorAll('.btn-penalty-winner').forEach(btn => { btn.disabled = true; });
         }
     });
 }
+
+
 
 // 8. Recalcular todo el Torneo y Actualizar Interfaz
 let globalStandings = {}; // { groupLetter: [ sortedTeams ] }
@@ -1814,16 +2060,23 @@ function renderRound(containerId, matchIds, competitorsData) {
         const card = document.createElement("div");
         card.className = "knockout-match-card glass-panel";
         card.id = `ko-match-${matchId}`;
+        if (m.kickoff) card.setAttribute('data-kickoff', m.kickoff.getTime());
 
         // Header de la Tarjeta del Partido
         let headerLabel = `Partido ${matchId}`;
         if (m.round === "third") headerLabel = "Tercer Puesto";
         if (m.round === "final") headerLabel = "Gran Final";
 
+        const koLocked = isMatchLocked(m.kickoff);
+        if (koLocked) card.classList.add('match-item--locked');
+
+        const koCountdown = buildCountdownBadge(m.kickoff, matchId);
+
         card.innerHTML = `
             <div class="match-card-header">
                 <span>${headerLabel}</span>
-                <span>${m.date} - ${m.time} PE - ${m.stadium}</span>
+                <span class="ko-match-info">${m.date} · ${m.time} · ${m.stadium}</span>
+                ${koCountdown}
             </div>
             
             <!-- Equipo Local -->

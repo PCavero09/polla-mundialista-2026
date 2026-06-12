@@ -491,7 +491,15 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    width: 90px;
+    flex: 1;
+}
+
+.team-name-label {
+    font-weight: 500;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .match-team.team-home {
@@ -2551,4 +2559,165 @@ body {
     .admin-tabs {
         flex-wrap: wrap;
     }
+}
+
+/* ==========================================================================
+   Match View Toggle & Date Header (Chronological View)
+   ========================================================================== */
+
+.match-view-toggle {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding: 0 1rem;
+}
+
+.view-toggle-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all var(--transition-speed);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.view-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-hover);
+}
+
+.view-toggle-btn.active {
+    background: rgba(0, 230, 118, 0.15);
+    border-color: var(--accent-mint);
+    color: var(--accent-mint);
+    box-shadow: var(--shadow-md), inset 0 0 10px rgba(0, 230, 118, 0.2);
+}
+
+.date-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 2rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.date-header-label {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.date-header-count {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-sm);
+}
+
+/* ==========================================================================
+   Match Countdowns & Badges
+   ========================================================================== */
+
+.match-group-badge {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+.cd-badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.cd-badge--upcoming {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+}
+
+.cd-badge--urgent {
+    background: rgba(223, 180, 58, 0.15);
+    color: var(--accent-gold);
+    border: 1px solid rgba(223, 180, 58, 0.3);
+}
+
+.cd-badge--live {
+    background: rgba(255, 82, 82, 0.15);
+    color: var(--accent-red);
+    border: 1px solid rgba(255, 82, 82, 0.3);
+}
+
+.cd-badge--closed {
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-muted);
+}
+
+.live-pulse {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: var(--accent-red);
+    border-radius: 50%;
+    animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(255, 82, 82, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 82, 82, 0); }
+}
+
+/* ==========================================================================
+   Match Item Enhancements (Next & Locked states)
+   ========================================================================== */
+
+.match-item--next {
+    border-left: 4px solid var(--accent-gold);
+    background: linear-gradient(to right, rgba(223, 180, 58, 0.05) 0%, transparent 50%);
+}
+
+.match-item--locked {
+    opacity: 0.85;
+    filter: grayscale(20%);
+}
+
+.match-item--locked .score-input {
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--text-muted);
+    border-color: rgba(255, 255, 255, 0.05);
+    cursor: not-allowed;
+}
+
+.match-footer-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px dashed rgba(255, 255, 255, 0.05);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.ko-match-info {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: normal;
 }
