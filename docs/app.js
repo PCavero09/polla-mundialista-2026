@@ -1297,7 +1297,7 @@ function parseKickoff(match) {
     let h = parseInt(tm[1]); const min = parseInt(tm[2]); const ap = tm[3].toUpperCase();
     if (ap === 'PM' && h !== 12) h += 12;
     if (ap === 'AM' && h === 12) h = 0;
-    const tz = STADIUM_TZ[match.stadium] || -5;
+    const tz = -5; // Todas las horas ingresadas son Hora Perú (UTC-5)
     return new Date(Date.UTC(2026, month, day, h - tz, min, 0));
 }
 
@@ -3309,7 +3309,31 @@ function calculateRealScore(predictions) {
 function initAdminPanel() {
     loadOfficialResults();
 
-    // Trigger en el título (Mantener presionado 2.5s o 5 clics)
+    // 1. Acceso vía URL: ?admin=true
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('admin') === 'true') {
+        setTimeout(() => navigateToView("admin"), 500);
+        // Limpiar la URL para evitar que se quede
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // 2. Trigger en el logo de FIFA (5 clics rápidos)
+    const logoTrigger = document.querySelector(".fifa-logo-img");
+    if (logoTrigger) {
+        let logoClicks = 0;
+        let logoTimer = null;
+        logoTrigger.addEventListener("click", () => {
+            logoClicks++;
+            if (logoClicks >= 5) {
+                logoClicks = 0;
+                navigateToView("admin");
+            }
+            clearTimeout(logoTimer);
+            logoTimer = setTimeout(() => { logoClicks = 0; }, 1500);
+        });
+    }
+
+    // 3. Trigger en el título (Mantener presionado 2.5s o 5 clics)
     const trigger = document.getElementById("admin-title-trigger");
     if (trigger) {
         let clickCount = 0;
