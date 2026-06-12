@@ -3,14 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Polla Mundialista FIFA 2026</title>
-    <!-- Google Fonts: Inter y Montserrat -->
+    <!-- Google Fonts: Inter, Montserrat y DM Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700;800;900&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -18,107 +16,491 @@
     <div class="app-background"></div>
     <div class="app-overlay"></div>
 
+    <!-- Header Principal -->
     <header class="app-header">
         <div class="header-logo-container">
-            <!-- Logo oficial del mundial provisto por el usuario -->
             <img src="Logo Mundial 2026.png" alt="Logo Oficial FIFA 2026" class="fifa-logo-img">
         </div>
         <div class="header-title-wrapper">
             <h1>POLLA MUNDIALISTA</h1>
             <h2>COPA MUNDIAL DE LA FIFA 2026™</h2>
         </div>
-        <div class="header-controls">
-            <div class="progress-container">
-                <span class="progress-label">Partidos Completados: <span id="completed-count">0</span> / 104</span>
-                <div class="progress-bar-bg">
-                    <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
-                </div>
-            </div>
-            <div class="action-buttons">
-                <button id="btn-save" class="btn btn-primary" title="Guardar predicciones localmente">
-                    <span class="btn-icon">💾</span> Guardar
-                </button>
-                <button id="btn-reset" class="btn btn-danger" title="Reiniciar toda la polla">
-                    <span class="btn-icon">🔄</span> Reiniciar
-                </button>
-                <button id="btn-share" class="btn btn-secondary" title="Exportar predicciones en formato archivo">
-                    <span class="btn-icon">📤</span> Exportar
-                </button>
-                <button id="btn-import" class="btn btn-secondary" title="Importar predicciones desde un archivo">
-                    <span class="btn-icon">📥</span> Importar
-                </button>
-                <input type="file" id="import-file" style="display: none;" accept=".json">
-            </div>
-            <div class="action-menu-mobile">
-                <button class="btn btn-secondary menu-trigger-btn" id="mobile-menu-trigger" title="Menú de acciones">
-                    <span class="btn-icon">⚙️</span> Acciones
-                </button>
-                <div class="mobile-menu-dropdown glass-panel" id="mobile-menu-dropdown">
-                    <button id="btn-save-mobile" class="menu-item">
-                        <span>💾</span> Guardar
-                    </button>
-                    <button id="btn-share-mobile" class="menu-item">
-                        <span>📤</span> Exportar
-                    </button>
-                    <button id="btn-import-mobile" class="menu-item">
-                        <span>📥</span> Importar
-                    </button>
-                    <button id="btn-reset-mobile" class="menu-item danger">
-                        <span>🔄</span> Reiniciar
-                    </button>
-                </div>
+        
+        <!-- Navegación de Escritorio -->
+        <nav class="desktop-nav">
+            <button class="desktop-nav-link active" data-view="home">Inicio</button>
+            <button class="desktop-nav-link" data-view="rules">Reglas</button>
+            <button class="desktop-nav-link" data-view="pronosticos">Pronósticos</button>
+            <button class="desktop-nav-link" data-view="ranking">Ranking</button>
+        </nav>
+
+        <!-- Controles de Usuario -->
+        <div class="header-user-controls">
+            <button id="btn-login-header" class="btn btn-secondary btn-login" data-view="auth">
+                <span class="btn-icon">👤</span> Ingresar
+            </button>
+            <div id="user-profile-header" class="user-profile-header" style="display: none;">
+                <span class="username-display" id="header-username">Usuario</span>
+                <button id="btn-logout-header" class="btn-logout-icon" title="Cerrar Sesión">🚪</button>
             </div>
         </div>
     </header>
 
-    <nav class="app-nav">
-        <button class="nav-tab active" data-target="tab-groups">
-            <span class="tab-icon">🏟️</span> Fase de Grupos
+    <!-- Barra de Navegación Móvil (Bottom Navigation Bar) -->
+    <nav class="bottom-nav-bar">
+        <button class="bottom-nav-item active" data-view="home">
+            <span class="bottom-nav-icon">🏠</span>
+            <span class="bottom-nav-label">Inicio</span>
         </button>
-        <button class="nav-tab" data-target="tab-thirds">
-            <span class="tab-icon">📊</span> Clasificación de Terceros
+        <button class="bottom-nav-item" data-view="rules">
+            <span class="bottom-nav-icon">📜</span>
+            <span class="bottom-nav-label">Reglas</span>
         </button>
-        <button class="nav-tab" data-target="tab-knockout">
-            <span class="tab-icon">🏆</span> Fase Eliminatoria
+        <button class="bottom-nav-item" data-view="pronosticos">
+            <span class="bottom-nav-icon">🏆</span>
+            <span class="bottom-nav-label">Pronósticos</span>
+        </button>
+        <button class="bottom-nav-item" data-view="ranking">
+            <span class="bottom-nav-icon">📊</span>
+            <span class="bottom-nav-label">Ranking</span>
         </button>
     </nav>
 
+    <!-- Contenido Principal Modular (SPA Views) -->
     <main class="app-content">
-        <!-- Pestaña 1: Fase de Grupos -->
-        <section id="tab-groups" class="tab-pane active">
-            <div class="groups-grid" id="groups-container">
-                <!-- Los grupos se generarán dinámicamente mediante JS -->
-                <div class="loading-spinner">Cargando grupos mundialistas...</div>
+
+        <!-- Vista 1: Inicio / Home -->
+        <section id="view-home" class="view-pane active">
+            <div class="home-hero-card glass-panel">
+                <div class="hero-glow"></div>
+                <div class="hero-content">
+                    <span class="hero-badge">FALTAN PARA EL PITAZO INICIAL</span>
+                    <!-- Contador Regresivo -->
+                    <div class="countdown-container" id="countdown">
+                        <div class="countdown-item">
+                            <span id="cd-days">00</span>
+                            <span class="cd-label">DÍAS</span>
+                        </div>
+                        <div class="countdown-divider">:</div>
+                        <div class="countdown-item">
+                            <span id="cd-hours">00</span>
+                            <span class="cd-label">HORAS</span>
+                        </div>
+                        <div class="countdown-divider">:</div>
+                        <div class="countdown-item">
+                            <span id="cd-minutes">00</span>
+                            <span class="cd-label">MIN</span>
+                        </div>
+                        <div class="countdown-divider">:</div>
+                        <div class="countdown-item">
+                            <span id="cd-seconds">00</span>
+                            <span class="cd-label">SEG</span>
+                        </div>
+                    </div>
+                    <h2 class="hero-main-title">Arma tu Polla Mundialista 2026</h2>
+                    <p class="hero-description">Predice los resultados de los 104 partidos del Mundial 2026. Acumula puntos por acertar ganadores y marcadores exactos. ¡Compite con tus amigos en tiempo real!</p>
+                    <div class="hero-actions">
+                        <button class="btn btn-primary btn-hero-cta" data-view="pronosticos">¡Comenzar a Predecir!</button>
+                        <button class="btn btn-secondary btn-hero-rules" data-view="rules">Ver Reglas de Juego</button>
+                    </div>
+                </div>
             </div>
         </section>
 
-        <!-- Pestaña 2: Tabla de Terceros -->
-        <section id="tab-thirds" class="tab-pane">
-            <div class="thirds-card glass-panel">
-                <div class="thirds-header">
-                    <h2>Tabla de Terceros Lugares</h2>
-                    <p>Los <strong>8 mejores terceros</strong> clasifican a la Ronda de 32 (Dieciseisavos de Final). Se
-                        actualiza automáticamente.</p>
+        <!-- Vista 2: Reglas -->
+        <section id="view-rules" class="view-pane">
+            <div class="section-card glass-panel">
+                <div class="section-header">
+                    <h2>Reglas del Juego y Tabla de Puntajes</h2>
+                    <p>Conoce cómo acumular puntos y escalar en la tabla de posiciones general de la Polla Mundialista.</p>
                 </div>
-                <div class="thirds-table-wrapper">
-                    <table class="thirds-table">
+                <div class="rules-grid">
+                    <div class="rule-card">
+                        <div class="rule-num">1</div>
+                        <h3>Puntaje en Fase de Grupos</h3>
+                        <ul>
+                            <li><strong>Resultado Correcto (Ganador o Empate):</strong> +2 puntos.</li>
+                            <li><strong>Marcador Exacto:</strong> +5 puntos en total (incluye los 2 puntos de ganador).</li>
+                        </ul>
+                    </div>
+                    <div class="rule-card">
+                        <div class="rule-num">2</div>
+                        <h3>Multiplicadores por Fase</h3>
+                        <p>Los puntos obtenidos en los partidos se multiplican según la fase del torneo:</p>
+                        <table class="simple-table">
+                            <thead>
+                                <tr>
+                                    <th>Fase</th>
+                                    <th>Multiplicador</th>
+                                    <th>Acierto</th>
+                                    <th>Exacto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Fase de Grupos</td>
+                                    <td>x1</td>
+                                    <td>2 pts</td>
+                                    <td>5 pts</td>
+                                </tr>
+                                <tr>
+                                    <td>Dieciseisavos (R32)</td>
+                                    <td>x2</td>
+                                    <td>4 pts</td>
+                                    <td>10 pts</td>
+                                </tr>
+                                <tr>
+                                    <td>Octavos de Final</td>
+                                    <td>x3</td>
+                                    <td>6 pts</td>
+                                    <td>15 pts</td>
+                                </tr>
+                                <tr>
+                                    <td>Cuartos de Final</td>
+                                    <td>x4</td>
+                                    <td>8 pts</td>
+                                    <td>20 pts</td>
+                                </tr>
+                                <tr>
+                                    <td>Semifinales</td>
+                                    <td>x5</td>
+                                    <td>10 pts</td>
+                                    <td>25 pts</td>
+                                </tr>
+                                <tr>
+                                    <td>Final / Tercer puesto</td>
+                                    <td>x6</td>
+                                    <td>12 pts</td>
+                                    <td>30 pts</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="rule-card">
+                        <div class="rule-num">3</div>
+                        <h3>Predicciones Especiales</h3>
+                        <p>Puntos extra por acertar antes del inicio del torneo:</p>
+                        <ul>
+                            <li><strong>Campeón del Mundo:</strong> +25 puntos.</li>
+                            <li><strong>Mejor Jugador (Balón de Oro):</strong> +15 puntos.</li>
+                            <li><strong>Goleador (Bota de Oro):</strong> +15 puntos.</li>
+                            <li><strong>Mejor Portero (Guante de Oro):</strong> +15 puntos.</li>
+                        </ul>
+                    </div>
+                    <div class="rule-card">
+                        <div class="rule-num">4</div>
+                        <h3>Criterios de Desempate</h3>
+                        <p>En caso de empate en la tabla de clasificación general, se aplicarán los siguientes criterios en orden:</p>
+                        <ol>
+                            <li>Mayor número de marcadores exactos acertados en todo el torneo.</li>
+                            <li>Mayor número de ganadores acertados.</li>
+                            <li><strong>Fecha de Registro:</strong> El usuario que registró/guardó su polla primero en el sistema se quedará con la mejor posición. ¡El tiempo vale oro!</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Vista 3: Autenticación / Registro -->
+        <section id="view-auth" class="view-pane">
+            <div class="auth-card glass-panel">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="tab-login-trigger">Iniciar Sesión</button>
+                    <button class="auth-tab" id="tab-register-trigger">Crear Cuenta</button>
+                </div>
+
+                <!-- Formulario Iniciar Sesión -->
+                <div class="auth-form-wrapper" id="form-login-container">
+                    <form id="form-login">
+                        <div class="form-group">
+                            <label for="login-email">Correo Electrónico</label>
+                            <input type="email" id="login-email" required placeholder="correo@ejemplo.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Contraseña</label>
+                            <input type="password" id="login-password" required placeholder="••••••••">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Ingresar</button>
+                    </form>
+                    <p class="auth-help-text">¿No tienes cuenta? <span class="auth-link" id="link-to-register">Regístrate gratis aquí</span></p>
+                </div>
+
+                <!-- Formulario Registro -->
+                <div class="auth-form-wrapper" id="form-register-container" style="display: none;">
+                    <form id="form-register">
+                        <div class="form-group">
+                            <label for="reg-name">Nombre Completo</label>
+                            <input type="text" id="reg-name" required placeholder="Juan Pérez">
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-email">Correo Electrónico</label>
+                            <input type="email" id="reg-email" required placeholder="juan.perez@ejemplo.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-dni">Documento (DNI/Cédula)</label>
+                            <input type="text" id="reg-dni" required placeholder="DNI o documento de identidad">
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-phone">Celular</label>
+                            <input type="tel" id="reg-phone" required placeholder="999 999 999">
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-favorite">Equipo Favorito (Mundial)</label>
+                            <select id="reg-favorite">
+                                <option value="ARG">Argentina</option>
+                                <option value="BRA">Brasil</option>
+                                <option value="MEX">México</option>
+                                <option value="ESP">España</option>
+                                <option value="FRA">Francia</option>
+                                <option value="GER">Alemania</option>
+                                <option value="ENG">Inglaterra</option>
+                                <option value="USA">EE. UU.</option>
+                                <option value="COL">Colombia</option>
+                                <option value="ECU">Ecuador</option>
+                                <option value="URU">Uruguay</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-password">Contraseña</label>
+                            <input type="password" id="reg-password" required placeholder="Mínimo 6 caracteres">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Registrarse y Comenzar</button>
+                    </form>
+                    <p class="auth-help-text">¿Ya tienes cuenta? <span class="auth-link" id="link-to-login">Inicia sesión aquí</span></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Vista 4: Pronósticos (Prediction Editor) -->
+        <section id="view-pronosticos" class="view-pane">
+            <div class="my-polla-header-wrapper glass-panel">
+                <div class="polla-info-section">
+                    <div class="progress-container">
+                        <span class="progress-label">Partidos Pronosticados: <span id="completed-count">0</span> / 104</span>
+                        <div class="progress-bar-bg">
+                            <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button id="btn-save" class="btn btn-primary btn-save-action" title="Guardar predicciones">
+                        <span class="btn-icon">💾</span> Guardar Predicciones
+                    </button>
+                </div>
+            </div>
+
+            <!-- Predicciones Especiales Card -->
+            <div class="special-predictions-card glass-panel">
+                <div class="card-title">
+                    <h3>🏆 Predicciones Especiales del Torneo</h3>
+                    <p>Elige a tus campeones antes de arrancar. ¡Dan puntos valiosos adicionales!</p>
+                </div>
+                <div class="special-inputs-grid">
+                    <div class="special-input-box">
+                        <label for="special-champion">Campeón Mundial</label>
+                        <select id="special-champion" class="special-select">
+                            <option value="">-- Selecciona --</option>
+                            <!-- Llenado dinámico -->
+                        </select>
+                    </div>
+                    <div class="special-input-box">
+                        <label for="special-mvp">Balón de Oro (Mejor Jugador)</label>
+                        <input type="text" id="special-mvp" class="special-input" placeholder="Nombre del jugador">
+                    </div>
+                    <div class="special-input-box">
+                        <label for="special-scorer">Bota de Oro (Goleador)</label>
+                        <input type="text" id="special-scorer" class="special-input" placeholder="Nombre del goleador">
+                    </div>
+                    <div class="special-input-box">
+                        <label for="special-gk">Guante de Oro (Mejor Portero)</label>
+                        <input type="text" id="special-gk" class="special-input" placeholder="Nombre del portero">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navegación de Pestañas de Predicción -->
+            <nav class="app-nav">
+                <button class="nav-tab active" data-target="tab-groups">
+                    <span class="tab-icon">🏟️</span> Fase de Grupos
+                </button>
+                <button class="nav-tab" data-target="tab-thirds">
+                    <span class="tab-icon">📊</span> Clasificación de Terceros
+                </button>
+                <button class="nav-tab" data-target="tab-knockout">
+                    <span class="tab-icon">🏆</span> Fase Eliminatoria
+                </button>
+            </nav>
+
+            <div id="my-polla-tabs-content">
+                <!-- Pestaña 1: Fase de Grupos -->
+                <section id="tab-groups" class="tab-pane active">
+                    <div class="groups-grid" id="groups-container">
+                        <div class="loading-spinner">Cargando grupos mundialistas...</div>
+                    </div>
+                </section>
+
+                <!-- Pestaña 2: Tabla de Terceros -->
+                <section id="tab-thirds" class="tab-pane">
+                    <div class="thirds-card glass-panel">
+                        <div class="thirds-header">
+                            <h2>Tabla de Terceros Lugares</h2>
+                            <p>Los <strong>8 mejores terceros</strong> clasifican a la Ronda de 32 (Dieciseisavos de Final). Se actualiza automáticamente.</p>
+                        </div>
+                        <div class="thirds-table-wrapper">
+                            <table class="thirds-table">
+                                <thead>
+                                    <tr>
+                                        <th>Pos</th>
+                                        <th>Grupo</th>
+                                        <th>Equipo</th>
+                                        <th title="Puntos">PTS</th>
+                                        <th title="Partidos Jugados">PJ</th>
+                                        <th title="Partidos Ganados">PG</th>
+                                        <th title="Partidos Empatados">PE</th>
+                                        <th title="Partidos Perdidos">PP</th>
+                                        <th title="Goles a Favor">GF</th>
+                                        <th title="Goles en Contra">GC</th>
+                                        <th title="Diferencia de Goles">DG</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="thirds-table-body">
+                                    <!-- Filas generadas dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Pestaña 3: Fase Eliminatoria (Bracket) -->
+                <section id="tab-knockout" class="tab-pane">
+                    <div class="bracket-wrapper">
+                        <!-- Selector de Rondas para Móviles -->
+                        <div class="bracket-nav-bar">
+                            <button class="bracket-nav-btn active" data-round="round-32">1/16</button>
+                            <button class="bracket-nav-btn" data-round="round-16">1/8</button>
+                            <button class="bracket-nav-btn" data-round="quarterfinals">1/4</button>
+                            <button class="bracket-nav-btn" data-round="semifinals">Semis</button>
+                            <button class="bracket-nav-btn" data-round="finals">Final</button>
+                        </div>
+
+                        <div class="bracket-container" id="bracket-scroller">
+                            <!-- Dieciseisavos (Round of 32) -->
+                            <div class="bracket-column round-32">
+                                <div class="round-title">
+                                    <h3>Dieciseisavos de Final</h3>
+                                    <span>28 Jun - 03 Jul</span>
+                                </div>
+                                <div class="matches-list" id="r32-matches-list">
+                                    <!-- Partidos R32 generados por JS -->
+                                </div>
+                            </div>
+
+                            <!-- Octavos de Final -->
+                            <div class="bracket-column round-16">
+                                <div class="round-title">
+                                    <h3>Octavos de Final</h3>
+                                    <span>04 Jul - 07 Jul</span>
+                                </div>
+                                <div class="matches-list" id="r16-matches-list">
+                                    <!-- Partidos R16 generados por JS -->
+                                </div>
+                            </div>
+
+                            <!-- Cuartos de Final -->
+                            <div class="bracket-column quarterfinals">
+                                <div class="round-title">
+                                    <h3>Cuartos de Final</h3>
+                                    <span>09 Jul - 11 Jul</span>
+                                </div>
+                                <div class="matches-list" id="qf-matches-list">
+                                    <!-- Partidos QF generados por JS -->
+                                </div>
+                            </div>
+
+                            <!-- Semifinales -->
+                            <div class="bracket-column semifinals">
+                                <div class="round-title">
+                                    <h3>Semifinales</h3>
+                                    <span>14 Jul - 15 Jul</span>
+                                </div>
+                                <div class="matches-list" id="sf-matches-list">
+                                    <!-- Partidos SF generados por JS -->
+                                </div>
+                            </div>
+
+                            <!-- Finales (Tercer puesto y Gran Final) -->
+                            <div class="bracket-column finals">
+                                <!-- Tercer Puesto -->
+                                <div class="finals-sub-round">
+                                    <div class="round-title">
+                                        <h3>3er y 4to Puesto</h3>
+                                        <span>18 Jul - Miami</span>
+                                    </div>
+                                    <div class="matches-list" id="third-place-match-list">
+                                        <!-- Partido 3er puesto -->
+                                    </div>
+                                </div>
+
+                                <!-- Final -->
+                                <div class="finals-sub-round">
+                                    <div class="round-title">
+                                        <h3>Gran Final</h3>
+                                        <span>19 Jul - Nueva York / Nueva Jersey</span>
+                                    </div>
+                                    <div class="matches-list" id="final-match-list">
+                                        <!-- Partido de la Final -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Campeón del Mundo -->
+                            <div class="bracket-column champion-column">
+                                <div class="round-title">
+                                    <h3>Campeón del Mundo</h3>
+                                    <span>FIFA World Cup 2026™</span>
+                                </div>
+                                <div class="champion-card-wrapper">
+                                    <div class="champion-card glass-panel" id="champion-card">
+                                        <div class="trophy-glow"></div>
+                                        <div class="trophy-image-container">
+                                            <img src="Trofeo.png" alt="Trofeo de la Copa del Mundo" class="trophy-img">
+                                        </div>
+                                        <div class="champion-flag" id="champion-flag-box">
+                                            <div class="empty-flag">?</div>
+                                        </div>
+                                        <div class="champion-name" id="champion-name-box">
+                                            ¿Quién será el campeón?
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <!-- Vista 5: Ranking / Leaderboard -->
+        <section id="view-ranking" class="view-pane">
+            <div class="ranking-card glass-panel">
+                <div class="ranking-header">
+                    <h2>Tabla de Clasificación General</h2>
+                    <p>Compara tus puntajes acumulados con el resto de participantes. Se actualiza en tiempo real.</p>
+                </div>
+                <div class="ranking-table-wrapper">
+                    <table class="ranking-table">
                         <thead>
                             <tr>
-                                <th>Pos</th>
-                                <th>Grupo</th>
-                                <th>Equipo</th>
-                                <th title="Puntos">PTS</th>
-                                <th title="Partidos Jugados">PJ</th>
-                                <th title="Partidos Ganados">PG</th>
-                                <th title="Partidos Empatados">PE</th>
-                                <th title="Partidos Perdidos">PP</th>
-                                <th title="Goles a Favor">GF</th>
-                                <th title="Goles en Contra">GC</th>
-                                <th title="Diferencia de Goles">DG</th>
-                                <th>Estado</th>
+                                <th>Puesto</th>
+                                <th>Usuario</th>
+                                <th>Equipo Fav.</th>
+                                <th>Exactos</th>
+                                <th>Ganadores</th>
+                                <th>Puntos</th>
                             </tr>
                         </thead>
-                        <tbody id="thirds-table-body">
+                        <tbody id="ranking-table-body">
                             <!-- Filas generadas dinámicamente -->
                         </tbody>
                     </table>
@@ -126,125 +508,20 @@
             </div>
         </section>
 
-        <!-- Pestaña 3: Fase Eliminatoria (Bracket) -->
-        <section id="tab-knockout" class="tab-pane">
-            <div class="bracket-wrapper">
-                <!-- Selector de Rondas para Móviles (Pro/Max Navigation) -->
-                <div class="bracket-nav-bar">
-                    <button class="bracket-nav-btn active" data-round="round-32">1/16</button>
-                    <button class="bracket-nav-btn" data-round="round-16">1/8</button>
-                    <button class="bracket-nav-btn" data-round="quarterfinals">1/4</button>
-                    <button class="bracket-nav-btn" data-round="semifinals">Semis</button>
-                    <button class="bracket-nav-btn" data-round="finals">Final</button>
-                </div>
-
-                <div class="bracket-container" id="bracket-scroller">
-
-                    <!-- Dieciseisavos (Round of 32) -->
-                    <div class="bracket-column round-32">
-                        <div class="round-title">
-                            <h3>Dieciseisavos de Final</h3>
-                            <span>28 Jun - 03 Jul</span>
-                        </div>
-                        <div class="matches-list" id="r32-matches-list">
-                            <!-- Partidos R32 generados por JS -->
-                        </div>
-                    </div>
-
-                    <!-- Octavos de Final -->
-                    <div class="bracket-column round-16">
-                        <div class="round-title">
-                            <h3>Octavos de Final</h3>
-                            <span>04 Jul - 07 Jul</span>
-                        </div>
-                        <div class="matches-list" id="r16-matches-list">
-                            <!-- Partidos R16 generados por JS -->
-                        </div>
-                    </div>
-
-                    <!-- Cuartos de Final -->
-                    <div class="bracket-column quarterfinals">
-                        <div class="round-title">
-                            <h3>Cuartos de Final</h3>
-                            <span>09 Jul - 11 Jul</span>
-                        </div>
-                        <div class="matches-list" id="qf-matches-list">
-                            <!-- Partidos QF generados por JS -->
-                        </div>
-                    </div>
-
-                    <!-- Semifinales -->
-                    <div class="bracket-column semifinals">
-                        <div class="round-title">
-                            <h3>Semifinales</h3>
-                            <span>14 Jul - 15 Jul</span>
-                        </div>
-                        <div class="matches-list" id="sf-matches-list">
-                            <!-- Partidos SF generados por JS -->
-                        </div>
-                    </div>
-
-                    <!-- Finales (Tercer puesto y Gran Final) -->
-                    <div class="bracket-column finals">
-                        <!-- Tercer Puesto -->
-                        <div class="finals-sub-round">
-                            <div class="round-title">
-                                <h3>3er y 4to Puesto</h3>
-                                <span>18 Jul - Miami</span>
-                            </div>
-                            <div class="matches-list" id="third-place-match-list">
-                                <!-- Partido 3er puesto -->
-                            </div>
-                        </div>
-
-                        <!-- Final -->
-                        <div class="finals-sub-round">
-                            <div class="round-title">
-                                <h3>Gran Final</h3>
-                                <span>19 Jul - Nueva York / Nueva Jersey</span>
-                            </div>
-                            <div class="matches-list" id="final-match-list">
-                                <!-- Partido de la Final -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Campeón del Mundo -->
-                    <div class="bracket-column champion-column">
-                        <div class="round-title">
-                            <h3>Campeón del Mundo</h3>
-                            <span>FIFA World Cup 2026™</span>
-                        </div>
-                        <div class="champion-card-wrapper">
-                            <div class="champion-card glass-panel" id="champion-card">
-                                <div class="trophy-glow"></div>
-                                <div class="trophy-image-container">
-                                    <img src="Trofeo.png" alt="Trofeo de la Copa del Mundo" class="trophy-img">
-                                </div>
-                                <div class="champion-flag" id="champion-flag-box">
-                                    <!-- Bandera del Campeón -->
-                                    <div class="empty-flag">?</div>
-                                </div>
-                                <div class="champion-name" id="champion-name-box">
-                                    ¿Quién será el campeón?
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </section>
     </main>
 
     <footer class="app-footer">
-        <p>&copy; 2026 Polla Mundialista FIFA 2026. Creado por Paolo Cavero. Creado para guardar tus predicciones
-            localmente.</p>
+        <p>&copy; 2026 Polla Mundialista FIFA 2026. Creado por Paolo Cavero.</p>
+        <p>Guardando predicciones en tiempo real en la nube.</p>
     </footer>
 
     <!-- Toast de Notificaciones -->
     <div id="toast" class="toast">Guardado correctamente ✔</div>
 
+    <!-- Firebase SDKs Compat (compatibles con navegadores sin bundlers) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="app.js"></script>
 </body>
 

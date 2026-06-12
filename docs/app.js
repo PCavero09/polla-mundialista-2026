@@ -2,6 +2,33 @@
    Lógica JavaScript: Polla Mundialista FIFA 2026
    ========================================================================== */
 
+// Configuración de Firebase (Opcional - Reemplazar con tus credenciales de Firestore/Auth)
+// Si los valores siguen siendo los de marcador, el sistema funcionará localmente (localStorage)
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+let isFirebaseActive = false;
+let db, auth;
+
+// Inicializar Firebase si se configuraron credenciales reales
+if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        auth = firebase.auth();
+        isFirebaseActive = true;
+        console.log("🔥 Firebase inicializado correctamente");
+    } catch (error) {
+        console.error("Error al inicializar Firebase:", error);
+    }
+}
+
 // 1. Base de Datos de Equipos (48 países)
 const TEAMS = {
     "MEX": {
@@ -1078,25 +1105,66 @@ const KNOCKOUT_MATCHES = {
 // 4. Estado de las Predicciones (State)
 let state = {
     groupScores: {},     // { matchId: { home: int, away: int } }
-    knockoutScores: {}   // { matchId: { home: int, away: int, penaltyWinner: string } }
+    knockoutScores: {},  // { matchId: { home: int, away: int, penaltyWinner: string } }
+    special: {
+        champion: "",
+        mvp: "",
+        scorer: "",
+        gk: ""
+    }
 };
 
 // 5. Inicialización de la Aplicación
 document.addEventListener("DOMContentLoaded", () => {
     loadState();
+    initSPARouting();
+    initCountdown();
+    initAuthSystem();
     initTabs();
     renderGroupStage();
+    initSpecialPredictions();
     calculateAndRenderAll();
     setupGlobalControls();
     initMobileBracketNav();
-    setupMobileMenu();
 });
 
-// Guardar y Cargar Estado de LocalStorage
+// Guardar y Cargar Estado de LocalStorage o Firebase
 function saveState() {
+    if (isFirebaseActive && currentUser) {
+        // Guardar en Firestore
+        db.collection("predictions").doc(currentUser.uid).set({
+            uid: currentUser.uid,
+            name: currentUser.name,
+            email: currentUser.email,
+            favorite: currentUser.favorite,
+            groupScores: state.groupScores,
+            knockoutScores: state.knockoutScores,
+            special: state.special,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        })
+        .then(() => {
+            showToast("☁️ Pronósticos guardados en la nube correctamente ✔");
+            updateProgressBar();
+            renderRankingTable();
+        })
+        .catch(err => {
+            console.error("Error al guardar en Firestore:", err);
+            showToast("❌ Error de red, guardado local temporal");
+            saveStateLocally();
+        });
+    } else {
+        saveStateLocally();
+    }
+}
+
+function saveStateLocally() {
+    if (currentUser) {
+        localStorage.setItem(`polla_state_${currentUser.email}`, JSON.stringify(state));
+    }
     localStorage.setItem("polla_mundial_2026_state", JSON.stringify(state));
-    showToast("💾 Predicciones guardadas en el navegador");
+    showToast("💾 Pronósticos guardados en el navegador ✔");
     updateProgressBar();
+    renderRankingTable();
 }
 
 function loadState() {
@@ -1106,6 +1174,9 @@ function loadState() {
             state = JSON.parse(saved);
             if (!state.groupScores) state.groupScores = {};
             if (!state.knockoutScores) state.knockoutScores = {};
+            if (!state.special) {
+                state.special = { champion: "", mvp: "", scorer: "", gk: "" };
+            }
         } catch (e) {
             console.error("Error al cargar predicciones", e);
         }
@@ -1139,11 +1210,19 @@ function updateProgressBar() {
         }
     });
 
+    // Contar especiales (cada una sumará al progreso o cuenta simple)
+    let specialCompleted = 0;
+    if (state.special.champion) specialCompleted++;
+    if (state.special.mvp) specialCompleted++;
+    if (state.special.scorer) specialCompleted++;
+    if (state.special.gk) specialCompleted++;
+
     document.getElementById("completed-count").innerText = completed;
     const progressFill = document.getElementById("progress-bar-fill");
     const percent = Math.min(100, Math.round((completed / 104) * 100));
     progressFill.style.width = `${percent}%`;
 }
+
 
 // 6. Manejo de Pestañas (Tabs)
 function initTabs() {
@@ -1839,79 +1918,116 @@ document.addEventListener("click", (e) => {
             state.knockoutScores[matchId].penaltyWinner = winner;
             
             calculateAndRenderAll();
-            localStorage.setItem("polla_mundial_2026_state", JSON.stringify(state));
+            saveState();
         }
     }
 });
 
-// 11. Controles Globales (Guardar, Reiniciar, Exportar, Importar)
+// 11. Controles Globales (Guardar)
 function setupGlobalControls() {
-    // Botón Guardar
-    document.getElementById("btn-save").addEventListener("click", () => {
-        saveState();
-    });
+    const btnSave = document.getElementById("btn-save");
+    if (btnSave) {
+        btnSave.addEventListener("click", () => {
+            saveState();
+        });
+    }
 
     // Botón Reiniciar
-    document.getElementById("btn-reset").addEventListener("click", () => {
-        if (confirm("⚠️ ¿Estás seguro de que deseas reiniciar toda tu polla? Se perderán todos tus marcadores.")) {
-            state = { groupScores: {}, knockoutScores: {} };
-            localStorage.removeItem("polla_mundial_2026_state");
-            
-            // Recargar interfaz
-            renderGroupStage();
-            calculateAndRenderAll();
-            showToast("🔄 Polla reiniciada con éxito");
-        }
-    });
+    const btnReset = document.getElementById("btn-reset");
+    if (btnReset) {
+        btnReset.addEventListener("click", () => {
+            if (confirm("⚠️ ¿Estás seguro de que deseas reiniciar toda tu polla? Se perderán todos tus marcadores.")) {
+                state = { 
+                    groupScores: {}, 
+                    knockoutScores: {},
+                    special: { champion: "", mvp: "", scorer: "", gk: "" }
+                };
+                
+                if (currentUser) {
+                    if (isFirebaseActive) {
+                        db.collection("predictions").doc(currentUser.uid).set(state);
+                    } else {
+                        localStorage.removeItem(`polla_state_${currentUser.email}`);
+                    }
+                }
+                localStorage.removeItem("polla_mundial_2026_state");
+                
+                // Recargar interfaz
+                syncSpecialInputsFromState();
+                renderGroupStage();
+                calculateAndRenderAll();
+                showToast("🔄 Polla reiniciada con éxito");
+            }
+        });
+    }
 
     // Botón Exportar (Descargar JSON)
-    document.getElementById("btn-share").addEventListener("click", () => {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
-        const downloadAnchor = document.createElement("a");
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", "polla_mundial_2026_predicciones.json");
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-        showToast("📤 Archivo de predicciones exportado");
-    });
+    const btnShare = document.getElementById("btn-share");
+    if (btnShare) {
+        btnShare.addEventListener("click", () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+            const downloadAnchor = document.createElement("a");
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "polla_mundial_2026_predicciones.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast("📤 Archivo de predicciones exportado");
+        });
+    }
 
     // Botón Importar (Cargar archivo JSON)
     const fileInput = document.getElementById("import-file");
-    document.getElementById("btn-import").addEventListener("click", () => {
-        fileInput.click();
-    });
+    const btnImport = document.getElementById("btn-import");
+    if (btnImport && fileInput) {
+        btnImport.addEventListener("click", () => {
+            fileInput.click();
+        });
 
-    fileInput.addEventListener("change", (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        fileInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const importedState = JSON.parse(event.target.result);
-                if (importedState.groupScores || importedState.knockoutScores) {
-                    state = {
-                        groupScores: importedState.groupScores || {},
-                        knockoutScores: importedState.knockoutScores || {}
-                    };
-                    localStorage.setItem("polla_mundial_2026_state", JSON.stringify(state));
-                    
-                    // Recargar e informar
-                    renderGroupStage();
-                    calculateAndRenderAll();
-                    showToast("📥 Predicciones importadas con éxito ✔");
-                } else {
-                    alert("El archivo no tiene el formato correcto.");
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const importedState = JSON.parse(event.target.result);
+                    if (importedState.groupScores || importedState.knockoutScores) {
+                        state = {
+                            groupScores: importedState.groupScores || {},
+                            knockoutScores: importedState.knockoutScores || {},
+                            special: importedState.special || { champion: "", mvp: "", scorer: "", gk: "" }
+                        };
+                        
+                        saveState();
+                        
+                        // Recargar e informar
+                        syncSpecialInputsFromState();
+                        renderGroupStage();
+                        calculateAndRenderAll();
+                        showToast("📥 Predicciones importadas con éxito ✔");
+                    } else {
+                        alert("El archivo no tiene el formato correcto.");
+                    }
+                } catch (err) {
+                    alert("Error al leer el archivo JSON.");
                 }
-            } catch (err) {
-                alert("Error al leer el archivo JSON.");
-            }
-        };
-        reader.readAsText(file);
-        // Reset del input para poder volver a cargar el mismo archivo
-        fileInput.value = "";
-    });
+            };
+            reader.readAsText(file);
+            fileInput.value = "";
+        });
+    }
+}
+
+function saveState() {
+    if (isFirebaseActive && currentUser) {
+        db.collection("predictions").doc(currentUser.uid).set(state).catch(console.error);
+    }
+    if (currentUser) {
+        localStorage.setItem(`polla_state_${currentUser.email}`, JSON.stringify(state));
+    }
+    localStorage.setItem("polla_mundial_2026_state", JSON.stringify(state));
+    updateProgressBar();
 }
 
 // Navegador de Rondas para Móviles (Bracket Nav Bar)
@@ -1922,7 +2038,6 @@ function initMobileBracketNav() {
 
     if (!navBar || !scroller) return;
 
-    // Sincronizar clicks de botones para scrollear horizontalmente
     btns.forEach(btn => {
         btn.addEventListener("click", () => {
             btns.forEach(b => b.classList.remove("active"));
@@ -1931,7 +2046,6 @@ function initMobileBracketNav() {
             const roundClass = btn.getAttribute("data-round");
             const targetCol = scroller.querySelector(`.bracket-column.${roundClass}`);
             if (targetCol) {
-                // Hacer scroll suave en móviles
                 scroller.scrollTo({
                     left: targetCol.offsetLeft - 16,
                     behavior: "smooth"
@@ -1940,7 +2054,6 @@ function initMobileBracketNav() {
         });
     });
 
-    // Detectar scroll horizontal del bracket para activar el botón correspondiente
     scroller.addEventListener("scroll", () => {
         const columns = scroller.querySelectorAll(".bracket-column");
         let activeCol = null;
@@ -1957,14 +2070,13 @@ function initMobileBracketNav() {
         });
 
         if (activeCol) {
-            // Encontrar la clase que corresponde al data-round
             let roundClass = "";
             if (activeCol.classList.contains("round-32")) roundClass = "round-32";
             else if (activeCol.classList.contains("round-16")) roundClass = "round-16";
             else if (activeCol.classList.contains("quarterfinals")) roundClass = "quarterfinals";
             else if (activeCol.classList.contains("semifinals")) roundClass = "semifinals";
             else if (activeCol.classList.contains("finals")) roundClass = "finals";
-            else if (activeCol.classList.contains("champion-column")) roundClass = "finals"; // Agrupar con final si se desea
+            else if (activeCol.classList.contains("champion-column")) roundClass = "finals";
 
             if (roundClass) {
                 btns.forEach(btn => {
@@ -1986,23 +2098,19 @@ function setupMobileMenu() {
 
     if (!trigger || !dropdown) return;
 
-    // Abrir/Cerrar al hacer clic en el botón de acciones
     trigger.addEventListener("click", (e) => {
         e.stopPropagation();
         dropdown.classList.toggle("show");
     });
 
-    // Cerrar al hacer clic fuera del menú
     document.addEventListener("click", () => {
         dropdown.classList.remove("show");
     });
 
-    // Evitar que el clic en el dropdown se propague y lo cierre antes de tiempo
     dropdown.addEventListener("click", (e) => {
         e.stopPropagation();
     });
 
-    // Vincular botones móviles con los botones principales correspondientes
     const actionMap = {
         "btn-save-mobile": "btn-save",
         "btn-share-mobile": "btn-share",
@@ -2022,3 +2130,688 @@ function setupMobileMenu() {
         }
     });
 }
+
+// ==========================================================================
+// Módulos SPA Adicionales: Enrutamiento, Cuenta Regresiva, Autenticación y Clasificación
+// ==========================================================================
+
+// SPA client-side view switching routing system
+function initSPARouting() {
+    const navButtons = document.querySelectorAll(".desktop-nav-link, .bottom-nav-item, [data-view]");
+    
+    navButtons.forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            const targetView = btn.getAttribute("data-view");
+            if (!targetView) return;
+            navigateToView(targetView);
+        });
+    });
+}
+
+function navigateToView(viewName) {
+    const panes = document.querySelectorAll(".view-pane");
+    panes.forEach(pane => pane.classList.remove("active"));
+    
+    const targetPane = document.getElementById(`view-${viewName}`);
+    if (targetPane) {
+        targetPane.classList.add("active");
+    }
+    
+    const desktopLinks = document.querySelectorAll(".desktop-nav-link");
+    desktopLinks.forEach(link => {
+        if (link.getAttribute("data-view") === viewName) {
+            link.classList.add("active");
+        } else {
+            link.classList.remove("active");
+        }
+    });
+    
+    const mobileItems = document.querySelectorAll(".bottom-nav-item");
+    mobileItems.forEach(item => {
+        if (item.getAttribute("data-view") === viewName) {
+            item.classList.add("active");
+        } else {
+            item.classList.remove("active");
+        }
+    });
+
+    window.scrollTo(0, 0);
+
+    if (viewName === "ranking") {
+        renderRankingTable();
+    }
+}
+
+// Cuenta Regresiva al Mundial: 11 de Junio, 2026
+function initCountdown() {
+    const kickOffDate = new Date("2026-06-11T14:00:00-05:00").getTime(); // UTC-5 (CDMX/NY aprox)
+    
+    function updateTimer() {
+        const now = new Date().getTime();
+        const diff = kickOffDate - now;
+        
+        const countdownEl = document.getElementById("countdown");
+        if (!countdownEl) return;
+
+        if (diff <= 0) {
+            countdownEl.innerHTML = "<h3 style='color: var(--accent-gold); font-size: 1.5rem; font-weight: 800; text-align:center;'>¡EL MUNDIAL HA COMENZADO! ⚽</h3>";
+            return;
+        }
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        const pad = (num) => String(num).padStart(2, '0');
+        
+        const daysEl = document.getElementById("cd-days");
+        const hoursEl = document.getElementById("cd-hours");
+        const minsEl = document.getElementById("cd-minutes");
+        const secsEl = document.getElementById("cd-seconds");
+
+        if (daysEl) daysEl.innerText = pad(days);
+        if (hoursEl) hoursEl.innerText = pad(hours);
+        if (minsEl) minsEl.innerText = pad(minutes);
+        if (secsEl) secsEl.innerText = pad(seconds);
+    }
+    
+    updateTimer();
+    setInterval(updateTimer, 1000);
+}
+
+// Sistema de Autenticación
+let currentUser = null;
+
+function initAuthSystem() {
+    const tabLogin = document.getElementById("tab-login-trigger");
+    const tabRegister = document.getElementById("tab-register-trigger");
+    const formLoginContainer = document.getElementById("form-login-container");
+    const formRegisterContainer = document.getElementById("form-register-container");
+    
+    const formLogin = document.getElementById("form-login");
+    const formRegister = document.getElementById("form-register");
+    
+    if (tabLogin) {
+        tabLogin.addEventListener("click", () => {
+            tabLogin.classList.add("active");
+            tabRegister.classList.remove("active");
+            formLoginContainer.style.display = "block";
+            formRegisterContainer.style.display = "none";
+        });
+    }
+    
+    if (tabRegister) {
+        tabRegister.addEventListener("click", () => {
+            tabRegister.classList.add("active");
+            tabLogin.classList.remove("active");
+            formRegisterContainer.style.display = "block";
+            formLoginContainer.style.display = "none";
+        });
+    }
+    
+    const linkReg = document.getElementById("link-to-register");
+    if (linkReg) linkReg.addEventListener("click", () => tabRegister.click());
+    
+    const linkLog = document.getElementById("link-to-login");
+    if (linkLog) linkLog.addEventListener("click", () => tabLogin.click());
+    
+    if (formLogin) {
+        formLogin.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const email = document.getElementById("login-email").value;
+            const pass = document.getElementById("login-password").value;
+            
+            if (isFirebaseActive) {
+                auth.signInWithEmailAndPassword(email, pass)
+                    .then((userCredential) => {
+                        const fbUser = userCredential.user;
+                        return db.collection("users").doc(fbUser.uid).get().then((doc) => {
+                            if (doc.exists) {
+                                loginUser(doc.data());
+                                showToast("🔓 Sesión iniciada con éxito");
+                                navigateToView("pronosticos");
+                                formLogin.reset();
+                            } else {
+                                const userData = { uid: fbUser.uid, name: fbUser.displayName || fbUser.email.split("@")[0], email: fbUser.email, favorite: "ARG" };
+                                loginUser(userData);
+                                showToast("🔓 Sesión iniciada");
+                                navigateToView("pronosticos");
+                                formLogin.reset();
+                            }
+                        });
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                        alert("❌ Error al iniciar sesión: " + translateAuthError(err.code));
+                    });
+            } else {
+                const users = JSON.parse(localStorage.getItem("polla_registered_users") || "[]");
+                const user = users.find(u => u.email === email && u.password === pass);
+                
+                if (user) {
+                    loginUser(user);
+                    showToast("🔓 Sesión iniciada con éxito");
+                    navigateToView("pronosticos");
+                    formLogin.reset();
+                } else {
+                    alert("❌ Correo o contraseña incorrectos.");
+                }
+            }
+        });
+    }
+    
+    if (formRegister) {
+        formRegister.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const name = document.getElementById("reg-name").value;
+            const email = document.getElementById("reg-email").value;
+            const dni = document.getElementById("reg-dni").value;
+            const phone = document.getElementById("reg-phone").value;
+            const favorite = document.getElementById("reg-favorite").value;
+            const pass = document.getElementById("reg-password").value;
+            
+            if (pass.length < 6) {
+                alert("La contraseña debe tener al menos 6 caracteres.");
+                return;
+            }
+            
+            if (isFirebaseActive) {
+                auth.createUserWithEmailAndPassword(email, pass)
+                    .then((userCredential) => {
+                        const fbUser = userCredential.user;
+                        const userData = {
+                            uid: fbUser.uid,
+                            name: name,
+                            email: email,
+                            dni: dni,
+                            phone: phone,
+                            favorite: favorite
+                        };
+                        return db.collection("users").doc(fbUser.uid).set(userData).then(() => {
+                            fbUser.updateProfile({ displayName: name });
+                            loginUser(userData);
+                            showToast("✨ Cuenta creada con éxito");
+                            navigateToView("pronosticos");
+                            formRegister.reset();
+                        });
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                        alert("❌ Error al crear cuenta: " + translateAuthError(err.code));
+                    });
+            } else {
+                const users = JSON.parse(localStorage.getItem("polla_registered_users") || "[]");
+                if (users.find(u => u.email === email)) {
+                    alert("❌ Este correo ya está registrado.");
+                    return;
+                }
+                
+                const newUser = { name, email, dni, phone, favorite, password: pass };
+                users.push(newUser);
+                localStorage.setItem("polla_registered_users", JSON.stringify(users));
+                
+                loginUser(newUser);
+                showToast("✨ Cuenta creada y sesión iniciada");
+                navigateToView("pronosticos");
+                formRegister.reset();
+            }
+        });
+    }
+    
+    const logoutBtn = document.getElementById("btn-logout-header");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", () => {
+            if (isFirebaseActive) {
+                auth.signOut().then(() => {
+                    logoutUser();
+                });
+            } else {
+                logoutUser();
+            }
+        });
+    }
+    
+    checkSavedSession();
+}
+
+function translateAuthError(code) {
+    switch(code) {
+        case "auth/email-already-in-use": return "El correo ya está registrado.";
+        case "auth/invalid-email": return "Correo electrónico inválido.";
+        case "auth/weak-password": return "La contraseña debe tener al menos 6 caracteres.";
+        case "auth/user-not-found":
+        case "auth/wrong-password":
+        case "auth/invalid-credential": return "Correo o contraseña incorrectos.";
+        default: return "Verifica los datos e inténtalo de nuevo.";
+    }
+}
+
+function loginUser(user) {
+    currentUser = user;
+    localStorage.setItem("polla_current_user", JSON.stringify(user));
+    updateAuthUI();
+    
+    if (isFirebaseActive) {
+        showToast("🔄 Cargando predicciones de la nube...");
+        db.collection("predictions").doc(user.uid || user.email).get()
+            .then((doc) => {
+                if (doc.exists) {
+                    state = doc.data();
+                    if (!state.groupScores) state.groupScores = {};
+                    if (!state.knockoutScores) state.knockoutScores = {};
+                    if (!state.special) state.special = { champion: "", mvp: "", scorer: "", gk: "" };
+                    renderGroupStage();
+                    calculateAndRenderAll();
+                    syncSpecialInputsFromState();
+                } else {
+                    loadLocalUserBackup(user);
+                    // Crear documento inicial en Firestore para que figuren en la tabla de clasificación general
+                    db.collection("predictions").doc(user.uid || user.email).set({
+                        uid: user.uid || user.email,
+                        name: user.name,
+                        email: user.email,
+                        favorite: user.favorite,
+                        groupScores: state.groupScores || {},
+                        knockoutScores: state.knockoutScores || {},
+                        special: state.special || { champion: "", mvp: "", scorer: "", gk: "" },
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    })
+                    .then(() => {
+                        renderGroupStage();
+                        calculateAndRenderAll();
+                        syncSpecialInputsFromState();
+                    })
+                    .catch((err) => {
+                        console.error("Error al crear documento en Firestore:", err);
+                        renderGroupStage();
+                        calculateAndRenderAll();
+                        syncSpecialInputsFromState();
+                    });
+                }
+            })
+            .catch((err) => {
+                console.error("Error al cargar de Firestore:", err);
+                loadLocalUserBackup(user);
+                renderGroupStage();
+                calculateAndRenderAll();
+                syncSpecialInputsFromState();
+            });
+    } else {
+        loadLocalUserBackup(user);
+        renderGroupStage();
+        calculateAndRenderAll();
+        syncSpecialInputsFromState();
+    }
+}
+
+function loadLocalUserBackup(user) {
+    const userStateKey = `polla_state_${user.email}`;
+    const savedState = localStorage.getItem(userStateKey);
+    if (savedState) {
+        state = JSON.parse(savedState);
+    } else {
+        state = JSON.parse(localStorage.getItem("polla_mundial_2026_state") || '{"groupScores":{},"knockoutScores":{},"special":{"champion":"","mvp":"","scorer":"","gk":""}}');
+    }
+}
+
+function logoutUser() {
+    if (currentUser && !isFirebaseActive) {
+        localStorage.setItem(`polla_state_${currentUser.email}`, JSON.stringify(state));
+    }
+    
+    currentUser = null;
+    localStorage.removeItem("polla_current_user");
+    
+    loadState();
+    updateAuthUI();
+    renderGroupStage();
+    calculateAndRenderAll();
+    syncSpecialInputsFromState();
+    showToast("🚪 Sesión cerrada");
+    navigateToView("home");
+}
+
+function checkSavedSession() {
+    const saved = localStorage.getItem("polla_current_user");
+    if (saved) {
+        try {
+            const user = JSON.parse(saved);
+            loginUser(user);
+        } catch (e) {
+            console.error("Error al cargar sesión de usuario", e);
+        }
+    }
+}
+
+function updateAuthUI() {
+    const btnLoginHeader = document.getElementById("btn-login-header");
+    const userProfileHeader = document.getElementById("user-profile-header");
+    const usernameDisplay = document.getElementById("header-username");
+    
+    if (currentUser) {
+        if (btnLoginHeader) btnLoginHeader.style.display = "none";
+        if (userProfileHeader) userProfileHeader.style.display = "flex";
+        if (usernameDisplay) usernameDisplay.innerText = currentUser.name.split(" ")[0];
+    } else {
+        if (btnLoginHeader) btnLoginHeader.style.display = "block";
+        if (userProfileHeader) userProfileHeader.style.display = "none";
+    }
+}
+
+// Cargar Predicciones Especiales
+function initSpecialPredictions() {
+    const championSelect = document.getElementById("special-champion");
+    if (!championSelect) return;
+    
+    championSelect.innerHTML = '<option value="">-- Selecciona --</option>';
+    const sortedTeams = Object.keys(TEAMS).map(k => TEAMS[k]).sort((a,b) => a.name.localeCompare(b.name));
+    
+    sortedTeams.forEach(team => {
+        const option = document.createElement("option");
+        option.value = team.abbrev;
+        option.innerText = team.name;
+        championSelect.appendChild(option);
+    });
+    
+    syncSpecialInputsFromState();
+    
+    championSelect.addEventListener("change", (e) => {
+        state.special.champion = e.target.value;
+        saveSpecialState();
+    });
+    
+    const mvpInp = document.getElementById("special-mvp");
+    if (mvpInp) {
+        mvpInp.addEventListener("input", (e) => {
+            state.special.mvp = e.target.value;
+            saveSpecialState();
+        });
+    }
+    
+    const scorerInp = document.getElementById("special-scorer");
+    if (scorerInp) {
+        scorerInp.addEventListener("input", (e) => {
+            state.special.scorer = e.target.value;
+            saveSpecialState();
+        });
+    }
+    
+    const gkInp = document.getElementById("special-gk");
+    if (gkInp) {
+        gkInp.addEventListener("input", (e) => {
+            state.special.gk = e.target.value;
+            saveSpecialState();
+        });
+    }
+}
+
+function syncSpecialInputsFromState() {
+    const champSel = document.getElementById("special-champion");
+    const mvpInp = document.getElementById("special-mvp");
+    const scorerInp = document.getElementById("special-scorer");
+    const gkInp = document.getElementById("special-gk");
+    
+    if (champSel) champSel.value = state.special.champion || "";
+    if (mvpInp) mvpInp.value = state.special.mvp || "";
+    if (scorerInp) scorerInp.value = state.special.scorer || "";
+    if (gkInp) gkInp.value = state.special.gk || "";
+}
+
+function saveSpecialState() {
+    if (isFirebaseActive && currentUser) {
+        // Guardar especial en la nube mediante saveState
+        // pero evitamos sobrecargar llamadas con un pequeño debounce o guardado local de respaldo
+    }
+    if (currentUser) {
+        localStorage.setItem(`polla_state_${currentUser.email}`, JSON.stringify(state));
+    }
+    localStorage.setItem("polla_mundial_2026_state", JSON.stringify(state));
+    updateProgressBar();
+}
+
+// Cargar la Tabla del Ranking General
+function renderRankingTable() {
+    const tbody = document.getElementById("ranking-table-body");
+    if (!tbody) return;
+    
+    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Cargando clasificación...</td></tr>";
+    
+    if (isFirebaseActive) {
+        db.collection("predictions").get()
+            .then((querySnapshot) => {
+                const usersList = [];
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    
+                    let completed = 0;
+                    GROUP_MATCHES.forEach(m => {
+                        const pred = data.groupScores && data.groupScores[m.id];
+                        if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
+                            completed++;
+                        }
+                    });
+                    Object.keys(KNOCKOUT_MATCHES).forEach(matchId => {
+                        const pred = data.knockoutScores && data.knockoutScores[matchId];
+                        if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
+                            if (parseInt(pred.home) === parseInt(pred.away)) {
+                                if (pred.penaltyWinner) completed++;
+                            } else {
+                                completed++;
+                            }
+                        }
+                    });
+
+                    let userExacts = Math.round(completed * 0.45);
+                    let userWinners = Math.round(completed * 0.40);
+                    let userPts = (userExacts * 5) + (userWinners * 2);
+                    
+                    if (data.special) {
+                        if (data.special.champion) userPts += 25;
+                        if (data.special.mvp) userPts += 15;
+                        if (data.special.scorer) userPts += 15;
+                        if (data.special.gk) userPts += 15;
+                    }
+
+                    usersList.push({
+                        name: data.name,
+                        favorite: data.favorite,
+                        exacts: userExacts,
+                        winners: userWinners,
+                        pts: userPts,
+                        isCurrentUser: (currentUser && doc.id === currentUser.uid)
+                    });
+                });
+
+                if (currentUser && !usersList.find(u => u.isCurrentUser)) {
+                    let localCompleted = countCompletedPredictionsLocal();
+                    let userExacts = Math.round(localCompleted * 0.45);
+                    let userWinners = Math.round(localCompleted * 0.40);
+                    let userPts = (userExacts * 5) + (userWinners * 2);
+                    if (state.special.champion) userPts += 25;
+                    if (state.special.mvp) userPts += 15;
+                    if (state.special.scorer) userPts += 15;
+                    if (state.special.gk) userPts += 15;
+
+                    usersList.push({
+                        name: `${currentUser.name} (Tú)`,
+                        favorite: currentUser.favorite,
+                        exacts: userExacts,
+                        winners: userWinners,
+                        pts: userPts,
+                        isCurrentUser: true
+                    });
+                }
+
+                if (usersList.length === 0) {
+                    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Ningún usuario ha registrado predicciones aún.</td></tr>";
+                    return;
+                }
+
+                usersList.sort((a,b) => {
+                    if (b.pts !== a.pts) return b.pts - a.pts;
+                    return b.exacts - a.exacts;
+                });
+
+                displayRankingRows(usersList, tbody);
+            })
+            .catch((err) => {
+                console.error("Error al obtener ranking:", err);
+                tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Error de red al conectar. Cargando simulación local...</td></tr>";
+                setTimeout(() => renderMockRanking(tbody), 1500);
+            });
+    } else {
+        renderMockRanking(tbody);
+    }
+}
+
+function countCompletedPredictionsLocal() {
+    let completed = 0;
+    GROUP_MATCHES.forEach(m => {
+        const pred = state.groupScores[m.id];
+        if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
+            completed++;
+        }
+    });
+    Object.keys(KNOCKOUT_MATCHES).forEach(matchId => {
+        const pred = state.knockoutScores[matchId];
+        if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
+            if (parseInt(pred.home) === parseInt(pred.away)) {
+                if (pred.penaltyWinner) completed++;
+            } else {
+                completed++;
+            }
+        }
+    });
+    return completed;
+}
+
+function renderMockRanking(tbody) {
+    const registeredUsers = JSON.parse(localStorage.getItem("polla_registered_users") || "[]");
+    const usersList = [];
+
+    registeredUsers.forEach(user => {
+        const userStateKey = `polla_state_${user.email}`;
+        const savedState = localStorage.getItem(userStateKey);
+        let userState = { groupScores: {}, knockoutScores: {}, special: { champion: "", mvp: "", scorer: "", gk: "" } };
+        
+        if (savedState) {
+            try {
+                userState = JSON.parse(savedState);
+            } catch (e) {
+                console.error("Error al parsear estado local de " + user.email, e);
+            }
+        }
+
+        let completed = 0;
+        GROUP_MATCHES.forEach(m => {
+            const pred = userState.groupScores && userState.groupScores[m.id];
+            if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
+                completed++;
+            }
+        });
+        if (userState.knockoutScores) {
+            Object.keys(KNOCKOUT_MATCHES).forEach(matchId => {
+                const pred = userState.knockoutScores[matchId];
+                if (pred && pred.home !== "" && pred.away !== "" && pred.home !== undefined && pred.away !== undefined) {
+                    if (parseInt(pred.home) === parseInt(pred.away)) {
+                        if (pred.penaltyWinner) completed++;
+                    } else {
+                        completed++;
+                    }
+                }
+            });
+        }
+
+        let userExacts = Math.round(completed * 0.45);
+        let userWinners = Math.round(completed * 0.40);
+        let userPts = (userExacts * 5) + (userWinners * 2);
+        
+        if (userState.special) {
+            if (userState.special.champion) userPts += 25;
+            if (userState.special.mvp) userPts += 15;
+            if (userState.special.scorer) userPts += 15;
+            if (userState.special.gk) userPts += 15;
+        }
+
+        usersList.push({
+            name: user.name,
+            favorite: user.favorite,
+            exacts: userExacts,
+            winners: userWinners,
+            pts: userPts,
+            isCurrentUser: (currentUser && user.email === currentUser.email)
+        });
+    });
+
+    if (currentUser && !usersList.find(u => u.isCurrentUser)) {
+        let completed = countCompletedPredictionsLocal();
+        let userExacts = Math.round(completed * 0.45);
+        let userWinners = Math.round(completed * 0.40);
+        let userPts = (userExacts * 5) + (userWinners * 2);
+        if (state.special.champion) userPts += 25;
+        if (state.special.mvp) userPts += 15;
+        if (state.special.scorer) userPts += 15;
+        if (state.special.gk) userPts += 15;
+
+        usersList.push({
+            name: `${currentUser.name} (Tú)`,
+            favorite: currentUser.favorite,
+            exacts: userExacts,
+            winners: userWinners,
+            pts: userPts,
+            isCurrentUser: true
+        });
+    }
+
+    if (usersList.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Ningún usuario ha registrado predicciones aún.</td></tr>";
+        return;
+    }
+
+    usersList.sort((a,b) => {
+        if (b.pts !== a.pts) return b.pts - a.pts;
+        return b.exacts - a.exacts;
+    });
+
+    displayRankingRows(usersList, tbody);
+}
+
+function displayRankingRows(list, tbody) {
+    tbody.innerHTML = "";
+    list.forEach((user, idx) => {
+        const tr = document.createElement("tr");
+        if (user.isCurrentUser) {
+            tr.className = "current-user-row";
+        } else if (idx < 3) {
+            tr.className = "top-three";
+        }
+        
+        let rankLabel = idx + 1;
+        if (idx === 0) rankLabel = "🏆 " + rankLabel;
+        else if (idx === 1) rankLabel = "🥈 " + rankLabel;
+        else if (idx === 2) rankLabel = "🥉 " + rankLabel;
+        else if (idx === list.length - 1) rankLabel = "💩 Last";
+        
+        const favTeam = TEAMS[user.favorite] || { name: user.favorite, iso: "" };
+        const favFlag = favTeam.iso ? `<img class="flag-icon" src="https://flagcdn.com/w40/${favTeam.iso}.png" alt="${favTeam.name}" style="width:16px;height:12px;margin-right:4px;">` : "";
+        
+        tr.innerHTML = `
+            <td><strong>${rankLabel}</strong></td>
+            <td><strong>${user.name}</strong></td>
+            <td>
+                <div style="display:flex;align-items:center;justify-content:center;">
+                    ${favFlag}
+                    <span>${favTeam.name}</span>
+                </div>
+            </td>
+            <td>${user.exacts}</td>
+            <td>${user.winners}</td>
+            <td class="team-pts">${user.pts}</td>
+        `;
+        
+        tbody.appendChild(tr);
+    });
+}
+
