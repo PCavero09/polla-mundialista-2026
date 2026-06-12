@@ -286,31 +286,36 @@
                 </div>
             </div>
 
-            <!-- Predicciones Especiales Card -->
+            <!-- Predicciones Especiales Card (Acordeón) -->
             <div class="special-predictions-card glass-panel">
-                <div class="card-title">
-                    <h3>🏆 Predicciones Especiales del Torneo</h3>
-                    <p>Elige a tus campeones antes de arrancar. ¡Dan puntos valiosos adicionales!</p>
+                <div class="card-title special-accordion-header" id="special-accordion-trigger" role="button" aria-expanded="true" tabindex="0">
+                    <div class="special-header-left">
+                        <h3>🏆 Predicciones Especiales del Torneo</h3>
+                        <p class="special-summary" id="special-summary-text">Elige a tus campeones antes de arrancar. ¡Dan puntos valiosos adicionales!</p>
+                    </div>
+                    <span class="accordion-chevron" id="special-chevron">▼</span>
                 </div>
-                <div class="special-inputs-grid">
-                    <div class="special-input-box">
-                        <label for="special-champion">Campeón Mundial</label>
-                        <select id="special-champion" class="special-select">
-                            <option value="">-- Selecciona --</option>
-                            <!-- Llenado dinámico -->
-                        </select>
-                    </div>
-                    <div class="special-input-box">
-                        <label for="special-mvp">Balón de Oro (Mejor Jugador)</label>
-                        <input type="text" id="special-mvp" class="special-input" placeholder="Nombre del jugador">
-                    </div>
-                    <div class="special-input-box">
-                        <label for="special-scorer">Bota de Oro (Goleador)</label>
-                        <input type="text" id="special-scorer" class="special-input" placeholder="Nombre del goleador">
-                    </div>
-                    <div class="special-input-box">
-                        <label for="special-gk">Guante de Oro (Mejor Portero)</label>
-                        <input type="text" id="special-gk" class="special-input" placeholder="Nombre del portero">
+                <div class="special-accordion-body" id="special-accordion-body">
+                    <div class="special-inputs-grid">
+                        <div class="special-input-box">
+                            <label for="special-champion">Campeón Mundial <span class="pts-badge">+25 pts</span></label>
+                            <select id="special-champion" class="special-select">
+                                <option value="">-- Selecciona --</option>
+                                <!-- Llenado dinámico -->
+                            </select>
+                        </div>
+                        <div class="special-input-box">
+                            <label for="special-mvp">Balón de Oro (Mejor Jugador) <span class="pts-badge">+15 pts</span></label>
+                            <input type="text" id="special-mvp" class="special-input" placeholder="Nombre del jugador">
+                        </div>
+                        <div class="special-input-box">
+                            <label for="special-scorer">Bota de Oro (Goleador) <span class="pts-badge">+15 pts</span></label>
+                            <input type="text" id="special-scorer" class="special-input" placeholder="Nombre del goleador">
+                        </div>
+                        <div class="special-input-box">
+                            <label for="special-gk">Guante de Oro (Mejor Portero) <span class="pts-badge">+15 pts</span></label>
+                            <input type="text" id="special-gk" class="special-input" placeholder="Nombre del portero">
+                        </div>
                     </div>
                 </div>
             </div>

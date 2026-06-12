@@ -1117,6 +1117,7 @@ let state = {
 // 5. Inicialización de la Aplicación
 document.addEventListener("DOMContentLoaded", () => {
     computeAllKickoffs();
+    loadOfficialResults();       // ← CRUCIAL: cargar ANTES de renderizar para que los puntajes sean correctos
     loadState();
     initSPARouting();
     initCountdown();
@@ -1124,11 +1125,16 @@ document.addEventListener("DOMContentLoaded", () => {
     initTabs();
     renderGroupStage();
     initSpecialPredictions();
+    initSpecialAccordion();      // ← Acordeón de predicciones especiales
     calculateAndRenderAll();
     setupGlobalControls();
     initMobileBracketNav();
     initAdminPanel();
     initMatchCountdowns();
+    // Si Firebase activo, sincronizar resultados oficiales desde la nube
+    loadOfficialResultsFromCloud();
+    initRealTimeRanking();
+    renderRankingTable();
 });
 
 // Guardar y Cargar Estado de LocalStorage o Firebase
@@ -2540,6 +2546,7 @@ function navigateToView(viewName) {
 
     if (viewName === "ranking") {
         renderRankingTable();
+        initRealTimeRanking();
     }
 }
 
@@ -2763,6 +2770,7 @@ function loginUser(user) {
                     renderGroupStage();
                     calculateAndRenderAll();
                     syncSpecialInputsFromState();
+                    initRealTimeRanking();
                 } else {
                     loadLocalUserBackup(user);
                     // Crear documento inicial en Firestore para que figuren en la tabla de clasificación general
@@ -3653,3 +3661,148 @@ function loadOfficialResultsIntoUI() {
     if (offGk) offGk.value = officialResults.special.gk || "";
 }
 
+// ==========================================================================
+// Sincronización de Resultados Oficiales desde la Nube (Firebase)
+// ==========================================================================
+
+let officialResultsListener = null;
+
+function loadOfficialResultsFromCloud() {
+    if (!isFirebaseActive) return;
+
+    // Usar onSnapshot para actualizaciones en tiempo real
+    if (officialResultsListener) officialResultsListener(); // cancelar listener previo
+    officialResultsListener = db.collection("official_results").doc("global")
+        .onSnapshot((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                officialResults = {
+                    group: data.group || {},
+                    knockout: data.knockout || {},
+                    special: data.special || { champion: "", mvp: "", scorer: "", gk: "" }
+                };
+                // Guardar copia local también
+                localStorage.setItem("polla_official_results_2026", JSON.stringify(officialResults));
+                // Re-renderizar para mostrar puntajes actualizados
+                renderGroupStage();
+                calculateAndRenderAll();
+                renderRankingTable();
+                console.log("🔄 Resultados oficiales sincronizados desde Firebase");
+            }
+        }, (err) => {
+            console.warn("No se pudo leer resultados oficiales de Firebase:", err);
+        });
+}
+
+// Listener en tiempo real para el ranking cuando Firebase está activo
+let rankingListener = null;
+
+function initRealTimeRanking() {
+    if (!isFirebaseActive) return;
+    if (rankingListener) rankingListener();
+
+    rankingListener = db.collection("predictions").onSnapshot(() => {
+        // Solo re-renderizar si la vista de ranking está activa
+        const rankingPane = document.getElementById("view-ranking");
+        if (rankingPane && rankingPane.classList.contains("active")) {
+            renderRankingTable();
+        }
+    }, (err) => {
+        console.warn("Error en listener de ranking:", err);
+    });
+}
+
+// ==========================================================================
+// Acordeón de Predicciones Especiales
+// ==========================================================================
+
+function initSpecialAccordion() {
+    const trigger = document.getElementById("special-accordion-trigger");
+    const body = document.getElementById("special-accordion-body");
+    const chevron = document.getElementById("special-chevron");
+    const summaryEl = document.getElementById("special-summary-text");
+
+    if (!trigger || !body) return;
+
+    // Determinar si debe estar colapsado al inicio
+    // Si los 4 campos están llenos → colapsar por defecto
+    const allFilled = state.special.champion && state.special.mvp && state.special.scorer && state.special.gk;
+    const savedOpen = localStorage.getItem("polla_special_accordion_open");
+
+    let isOpen;
+    if (savedOpen !== null) {
+        isOpen = savedOpen === "true";
+    } else {
+        isOpen = !allFilled; // abierto si no están todos llenos
+    }
+
+    // Actualizar resumen visible cuando está colapsado
+    function updateSummary() {
+        if (!summaryEl) return;
+        const parts = [];
+        if (state.special.champion) {
+            const t = TEAMS[state.special.champion];
+            parts.push(`🏆 ${t ? t.name : state.special.champion}`);
+        }
+        if (state.special.mvp) parts.push(`⭐ ${state.special.mvp}`);
+        if (state.special.scorer) parts.push(`👟 ${state.special.scorer}`);
+        if (state.special.gk) parts.push(`🧤 ${state.special.gk}`);
+        if (parts.length > 0) {
+            summaryEl.textContent = parts.join(" · ");
+            summaryEl.style.color = "var(--accent-gold)";
+        } else {
+            summaryEl.textContent = "Elige a tus campeones antes de arrancar. ¡Dan puntos valiosos adicionales!";
+            summaryEl.style.color = "";
+        }
+    }
+
+    function setAccordion(open) {
+        isOpen = open;
+        if (open) {
+            body.style.maxHeight = body.scrollHeight + "px";
+            body.classList.remove("collapsed");
+            if (chevron) chevron.style.transform = "rotate(0deg)";
+        } else {
+            body.style.maxHeight = "0px";
+            body.classList.add("collapsed");
+            if (chevron) chevron.style.transform = "rotate(-90deg)";
+        }
+        localStorage.setItem("polla_special_accordion_open", String(open));
+        updateSummary();
+    }
+
+    // Inicializar estado
+    // Primero set sin transición
+    body.style.transition = "none";
+    setAccordion(isOpen);
+    // Restaurar transición
+    setTimeout(() => { body.style.transition = ""; }, 50);
+
+    trigger.addEventListener("click", () => {
+        setAccordion(!isOpen);
+    });
+
+    // Escuchar cambios en los inputs especiales para actualizar el resumen
+    const inputIds = ["special-champion", "special-mvp", "special-scorer", "special-gk"];
+    inputIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener("change", updateSummary);
+            el.addEventListener("input", updateSummary);
+        }
+    });
+
+    updateSummary();
+
+    // Exponer función para re-inicializar cuando se actualice el estado
+    window._updateSpecialAccordionSummary = updateSummary;
+}
+
+// Llamar update del acordeón al sincronizar estado
+const _origSyncSpecial = syncSpecialInputsFromState;
+syncSpecialInputsFromState = function() {
+    _origSyncSpecial();
+    if (window._updateSpecialAccordionSummary) {
+        window._updateSpecialAccordionSummary();
+    }
+};
