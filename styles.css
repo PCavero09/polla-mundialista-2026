@@ -101,7 +101,7 @@ body {
    ========================================================================== */
 .app-header {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr auto auto;
     align-items: center;
     gap: 2rem;
     padding: 1.5rem 2.5rem;
@@ -864,7 +864,8 @@ body {
 .bracket-column.finals {
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
+    justify-content: center;
+    gap: 4rem;
     height: 100%;
 }
 
@@ -1989,7 +1990,7 @@ body {
 /* Pantallas Medianas (Laptops y Tablets) */
 @media (max-width: 1200px) {
     .app-header {
-        grid-template-columns: auto 1fr auto;
+        grid-template-columns: auto 1fr auto auto;
         padding: 1rem 1.5rem;
         gap: 1.5rem;
     }
