@@ -1366,11 +1366,49 @@ function formatNiceDate(dateStr) {
 
 // Global match view mode: 'date' or 'group'
 let groupViewMode = 'date';
+let matchFilterMode = 'upcoming'; // 'upcoming' o 'played'
 let groupInputListenerActive = false;
 
 function renderGroupStage() {
     const container = document.getElementById("groups-container");
     container.innerHTML = "";
+
+    // Count matches for badges
+    const now = Date.now();
+    let countUpcoming = 0;
+    let countPlayed = 0;
+    GROUP_MATCHES.forEach(m => {
+        const closed = m.kickoff && now >= m.kickoff.getTime();
+        if (closed) countPlayed++;
+        else countUpcoming++;
+    });
+
+    // --- Status Filter Bar ---
+    const statusBar = document.createElement('div');
+    statusBar.className = 'match-status-filters';
+    statusBar.innerHTML = `
+        <button class="status-filter-btn ${matchFilterMode === 'upcoming' ? 'active' : ''}" data-status="upcoming">
+            Próximos <span class="count-badge">${countUpcoming}</span>
+        </button>
+        <button class="status-filter-btn ${matchFilterMode === 'played' ? 'active' : ''}" data-status="played">
+            Jugados <span class="count-badge">${countPlayed}</span>
+        </button>
+    `;
+    container.appendChild(statusBar);
+    
+    statusBar.addEventListener('click', e => {
+        const btn = e.target.closest('[data-status]');
+        if (!btn) return;
+        const status = btn.getAttribute('data-status');
+        if (status === matchFilterMode) return;
+        matchFilterMode = status;
+        statusBar.querySelectorAll('.status-filter-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-status') === status);
+        });
+        const mc = document.getElementById('matches-view-container');
+        if (mc) mc.remove();
+        renderMatchesContent(container);
+    });
 
     // --- View Toggle Bar ---
     const toggleBar = document.createElement('div');
@@ -1437,14 +1475,20 @@ function renderMatchesContent(container) {
 }
 
 function renderMatchesByDate(container) {
-    const sorted = [...GROUP_MATCHES].sort((a, b) => {
+    const now = Date.now();
+    let sorted = [...GROUP_MATCHES].sort((a, b) => {
         const aT = a.kickoff ? a.kickoff.getTime() : Infinity;
         const bT = b.kickoff ? b.kickoff.getTime() : Infinity;
         return aT - bT;
     });
 
-    const now = Date.now();
-    const nextMatch = sorted.find(m => m.kickoff && m.kickoff.getTime() > now);
+    // Aplicar filtro Próximos/Jugados
+    sorted = sorted.filter(m => {
+        const closed = m.kickoff && now >= m.kickoff.getTime();
+        return matchFilterMode === 'played' ? closed : !closed;
+    });
+
+    const nextMatch = matchFilterMode === 'upcoming' ? sorted.find(m => m.kickoff && m.kickoff.getTime() > now) : null;
     let currentDate = null;
 
     sorted.forEach(m => {
@@ -1469,6 +1513,7 @@ function renderMatchesByDate(container) {
 }
 
 function renderMatchesByGroup(container) {
+    const now = Date.now();
     Object.keys(GROUPS).forEach(groupKey => {
         const group = GROUPS[groupKey];
 
@@ -1519,6 +1564,9 @@ function buildGroupMatchCard(m, isNext) {
     const locked = isMatchLocked(m.kickoff);
     const status = getMatchStatusFromKickoff(m.kickoff);
 
+    const official = officialResults.group && officialResults.group[m.id];
+    const hasOfficial = official && official.home !== "" && official.away !== "" && official.home !== undefined;
+
     const matchItem = document.createElement('div');
     matchItem.className = 'match-item' +
         (locked ? ' match-item--locked' : '') +
@@ -1528,7 +1576,63 @@ function buildGroupMatchCard(m, isNext) {
     matchItem.setAttribute('data-match-type', 'group');
 
     const countdownBadge = buildCountdownBadge(m.kickoff, m.id);
-    const groupBadge = `<span class="match-group-badge">Grupo ${m.group} · #${m.id}</span>`;
+    let groupBadge = `<span class="match-group-badge">Grupo ${m.group} · #${m.id}</span>`;
+    if (hasOfficial) groupBadge = `<span class="match-group-badge">Grupo ${m.group} · Jugado</span>`;
+
+    let matchCenterContent = '';
+    let predictionFooter = '';
+
+    if (hasOfficial) {
+        matchCenterContent = `
+            <div class="match-official-score">
+                <span>${official.home}</span>
+                <span class="score-divider">:</span>
+                <span>${official.away}</span>
+            </div>
+        `;
+
+        const oh = parseInt(official.home);
+        const oa = parseInt(official.away);
+        const ph = parseInt(pred.home);
+        const pa = parseInt(pred.away);
+
+        let badgeClass = "badge-pending";
+        let badgeText = "Pendiente";
+        let predText = "—";
+
+        if (!isNaN(ph) && !isNaN(pa)) {
+            predText = `${ph}-${pa}`;
+            if (ph === oh && pa === oa) {
+                badgeClass = "badge-exact";
+                badgeText = "Marcador exacto · +5";
+            } else {
+                const oResult = oh > oa ? "H" : oh < oa ? "A" : "D";
+                const pResult = ph > pa ? "H" : ph < pa ? "A" : "D";
+                if (oResult === pResult) {
+                    badgeClass = "badge-winner";
+                    badgeText = "Resultado · +2";
+                } else {
+                    badgeClass = "badge-wrong";
+                    badgeText = "0 pts";
+                }
+            }
+        }
+
+        predictionFooter = `
+            <div class="match-prediction-footer">
+                <span class="pred-label">TU PRONÓSTICO <span class="pred-score-text">${predText}</span></span>
+                <span class="pred-badge ${badgeClass}">${badgeText}</span>
+            </div>
+        `;
+    } else {
+        matchCenterContent = `
+            <div class="match-score-inputs">
+                <input type="number" min="0" max="30" class="score-input" data-match-id="${m.id}" data-team="home" value="${pred.home}"${locked ? ' disabled' : ''}>
+                <span class="score-divider">VS</span>
+                <input type="number" min="0" max="30" class="score-input" data-match-id="${m.id}" data-team="away" value="${pred.away}"${locked ? ' disabled' : ''}>
+            </div>
+        `;
+    }
 
     matchItem.innerHTML = `
         <div class="match-header-row">
@@ -1540,11 +1644,7 @@ function buildGroupMatchCard(m, isNext) {
                 <img class="flag-icon" src="https://flagcdn.com/w40/${teamHome.iso}.png" alt="${teamHome.name}">
                 <span class="team-name-label">${teamHome.name}</span>
             </div>
-            <div class="match-score-inputs">
-                <input type="number" min="0" max="30" class="score-input" data-match-id="${m.id}" data-team="home" value="${pred.home}"${locked ? ' disabled' : ''}>
-                <span class="score-divider">VS</span>
-                <input type="number" min="0" max="30" class="score-input" data-match-id="${m.id}" data-team="away" value="${pred.away}"${locked ? ' disabled' : ''}>
-            </div>
+            ${matchCenterContent}
             <div class="match-team team-away">
                 <span class="team-name-label">${teamAway.name}</span>
                 <img class="flag-icon" src="https://flagcdn.com/w40/${teamAway.iso}.png" alt="${teamAway.name}">
@@ -1554,6 +1654,7 @@ function buildGroupMatchCard(m, isNext) {
             <span class="match-time-info">📅 ${m.date} · ${m.time}</span>
             <span class="match-stadium">🏟️ ${m.stadium}</span>
         </div>
+        ${predictionFooter}
     `;
     return matchItem;
 }
