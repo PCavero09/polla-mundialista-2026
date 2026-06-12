@@ -1089,6 +1089,7 @@ document.addEventListener("DOMContentLoaded", () => {
     calculateAndRenderAll();
     setupGlobalControls();
     initMobileBracketNav();
+    setupMobileMenu();
 });
 
 // Guardar y Cargar Estado de LocalStorage
@@ -1974,6 +1975,50 @@ function initMobileBracketNav() {
                     }
                 });
             }
+        }
+    });
+}
+
+// Configurar el Menú Desplegable de Acciones en Móviles
+function setupMobileMenu() {
+    const trigger = document.getElementById("mobile-menu-trigger");
+    const dropdown = document.getElementById("mobile-menu-dropdown");
+
+    if (!trigger || !dropdown) return;
+
+    // Abrir/Cerrar al hacer clic en el botón de acciones
+    trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle("show");
+    });
+
+    // Cerrar al hacer clic fuera del menú
+    document.addEventListener("click", () => {
+        dropdown.classList.remove("show");
+    });
+
+    // Evitar que el clic en el dropdown se propague y lo cierre antes de tiempo
+    dropdown.addEventListener("click", (e) => {
+        e.stopPropagation();
+    });
+
+    // Vincular botones móviles con los botones principales correspondientes
+    const actionMap = {
+        "btn-save-mobile": "btn-save",
+        "btn-share-mobile": "btn-share",
+        "btn-import-mobile": "btn-import",
+        "btn-reset-mobile": "btn-reset"
+    };
+
+    Object.keys(actionMap).forEach(mobId => {
+        const mobBtn = document.getElementById(mobId);
+        const destBtn = document.getElementById(actionMap[mobId]);
+        
+        if (mobBtn && destBtn) {
+            mobBtn.addEventListener("click", () => {
+                dropdown.classList.remove("show");
+                destBtn.click();
+            });
         }
     });
 }
