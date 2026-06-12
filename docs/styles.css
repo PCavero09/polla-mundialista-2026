@@ -838,21 +838,25 @@ body {
 }
 
 /* Sub-rondas especiales para Finals (Semis / Tercero y Final) */
-.finals-sub-round {
-    flex: 1;
+.bracket-column.finals {
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    justify-content: space-around;
+    height: 100%;
 }
 
-.finals-sub-round:first-child {
-    margin-bottom: 2rem;
+.finals-sub-round {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.finals-sub-round .round-title {
+    margin-bottom: 0.5rem;
 }
 
 .finals-sub-round .matches-list {
     height: auto;
-    flex: 1;
-    justify-content: center;
 }
 
 /* Campeón del Mundo Card */
