@@ -1423,6 +1423,11 @@ function renderMatchesContent(container) {
     if (mc) mc.remove();
     mc = document.createElement('div');
     mc.id = 'matches-view-container';
+    
+    if (groupViewMode === 'group') {
+        mc.classList.add('grid-mode');
+    }
+
     container.appendChild(mc);
     if (groupViewMode === 'date') {
         renderMatchesByDate(mc);
