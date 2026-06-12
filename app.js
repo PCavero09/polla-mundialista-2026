@@ -3309,17 +3309,44 @@ function calculateRealScore(predictions) {
 function initAdminPanel() {
     loadOfficialResults();
 
-    // Trigger en el título (5 clics)
+    // Trigger en el título (Mantener presionado 2.5s o 5 clics)
     const trigger = document.getElementById("admin-title-trigger");
     if (trigger) {
         let clickCount = 0;
+        let pressTimer = null;
+        let clickResetTimer = null;
+
+        // Soporte para 5 clics
         trigger.addEventListener("click", () => {
             clickCount++;
             if (clickCount >= 5) {
                 clickCount = 0;
                 navigateToView("admin");
             }
+            clearTimeout(clickResetTimer);
+            clickResetTimer = setTimeout(() => { clickCount = 0; }, 1500);
         });
+
+        // Soporte para Mantener Presionado (Mobile amigable)
+        const startPress = () => {
+            pressTimer = setTimeout(() => {
+                clickCount = 0;
+                navigateToView("admin");
+            }, 2500);
+        };
+        const cancelPress = () => {
+            clearTimeout(pressTimer);
+        };
+
+        trigger.addEventListener("touchstart", startPress, { passive: true });
+        trigger.addEventListener("touchend", cancelPress);
+        trigger.addEventListener("touchmove", cancelPress); 
+        trigger.addEventListener("mousedown", startPress);
+        trigger.addEventListener("mouseup", cancelPress);
+        trigger.addEventListener("mouseleave", cancelPress);
+        
+        // Evitar el menu contextual nativo
+        trigger.addEventListener("contextmenu", (e) => e.preventDefault());
     }
 
     // Formulario de autenticación admin

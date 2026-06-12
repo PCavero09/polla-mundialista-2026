@@ -2812,38 +2812,39 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.5rem;
+    padding: 0.6rem 0.8rem;
     background: rgba(0, 0, 0, 0.3);
     border-top: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
-    margin: 0 -1.5rem -1.5rem -1.5rem;
-    margin-top: 1rem;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    margin: 0 -0.8rem -0.6rem -0.8rem;
+    margin-top: 0.5rem;
 }
 
 .pred-label {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: var(--text-muted);
     font-weight: 600;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .pred-score-text {
     background: rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
-    padding: 0.2rem 0.6rem;
+    padding: 0.15rem 0.4rem;
     border-radius: 4px;
     font-weight: 700;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .pred-badge {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     font-weight: 700;
-    padding: 0.3rem 0.8rem;
-    border-radius: 12px;
+    padding: 0.25rem 0.6rem;
+    border-radius: 10px;
+    text-align: center;
 }
 
 .badge-exact {
@@ -2872,11 +2873,20 @@ body {
 
 @media (max-width: 480px) {
     .match-prediction-footer {
-        flex-direction: column;
-        gap: 0.8rem;
-        align-items: flex-start;
-        padding: 0.8rem 1rem;
-        margin: 0 -1rem -1rem -1rem;
-        margin-top: 0.8rem;
+        flex-direction: row;
+        align-items: center;
+        padding: 0.6rem 0.8rem;
+        margin: 0 -0.8rem -0.6rem -0.8rem;
+        margin-top: 0.5rem;
+    }
+    .pred-label {
+        font-size: 0.6rem;
+    }
+    .pred-badge {
+        font-size: 0.6rem;
+        padding: 0.2rem 0.5rem;
+    }
+    .match-official-score {
+        font-size: 1.6rem;
     }
 }
