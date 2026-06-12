@@ -3309,8 +3309,8 @@ function calculateRealScore(predictions) {
 function initAdminPanel() {
     loadOfficialResults();
 
-    // Trigger oculto en el footer (5 clics)
-    const trigger = document.getElementById("admin-footer-trigger");
+    // Trigger en el título (5 clics)
+    const trigger = document.getElementById("admin-title-trigger");
     if (trigger) {
         let clickCount = 0;
         trigger.addEventListener("click", () => {
